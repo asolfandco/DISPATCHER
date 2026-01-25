@@ -302,6 +302,36 @@ def normalize_file_links(data):
     return []
 
 
+def parse_request_payload():
+    if request.content_type and request.content_type.startswith("multipart/form-data"):
+        payload_raw = request.form.get("payload")
+        payload = {}
+        if payload_raw:
+            try:
+                import json as _json
+                payload = _json.loads(payload_raw)
+            except Exception:
+                payload = {}
+        files = request.files.getlist("files")
+        return payload, files
+    return request.get_json(force=True, silent=True) or {}, []
+
+
+def save_uploaded_files(files):
+    saved_paths = []
+    if not files:
+        return saved_paths
+    for uploaded in files:
+        if not uploaded or not uploaded.filename:
+            continue
+        suffix = os.path.splitext(uploaded.filename)[1]
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        tmp.close()
+        uploaded.save(tmp.name)
+        saved_paths.append(tmp.name)
+    return saved_paths
+
+
 def _extract_drive_id(url):
     match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
     if match:
@@ -387,10 +417,12 @@ def upload_csv():
 
 @app.route('/send', methods=['POST'])
 def send():
-    data = request.json
+    data, uploaded_files = parse_request_payload()
     phone = data.get('phone')
     message = data.get('message')
     file_links = normalize_file_links(data)
+    upload_paths = save_uploaded_files(uploaded_files)
+    download_paths = []
     row_index = data.get('row_index')
     if not phone or not message:
         return jsonify({'error': 'Phone and message required', 'row_index': row_index})
@@ -416,11 +448,16 @@ def send():
             except Exception:
                 pass
 
-            for file_link in file_links:
-                file_path = download_file_from_link(file_link)
-                if not file_path:
-                    continue
+            file_paths = upload_paths[:]
+            if file_links and not file_paths:
+                for file_link in file_links:
+                    file_path = download_file_from_link(file_link)
+                    if not file_path:
+                        continue
+                    file_paths.append(file_path)
+                    download_paths.append(file_path)
 
+            for file_path in file_paths:
                 attach_button = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//span[@data-icon='clip'] | //span[@data-testid='clip']")))
                 attach_button.click()
 
@@ -428,7 +465,6 @@ def send():
                 file_input.send_keys(file_path)
 
                 time.sleep(5)
-                os.unlink(file_path)
 
             if not click_send_button(driver):
                 try:
@@ -441,13 +477,25 @@ def send():
             return jsonify({'status': 'Message sent', 'row_index': row_index})
         except Exception as e:
             return jsonify({'error': str(e), 'row_index': row_index})
+        finally:
+            for path in upload_paths:
+                try:
+                    os.unlink(path)
+                except Exception:
+                    pass
+            for path in download_paths:
+                try:
+                    os.unlink(path)
+                except Exception:
+                    pass
 
 @app.route('/send_all', methods=['POST'])
 def send_all():
-    data = request.json
+    data, uploaded_files = parse_request_payload()
     messages = data.get('contacts', data.get('messages', []))
     global_message = data.get('message')
     global_file_links = normalize_file_links(data)
+    upload_paths = save_uploaded_files(uploaded_files)
     min_interval = data.get('min_interval', 2)  # segundos
     max_interval = data.get('max_interval', 4)  # segundos
     try:
@@ -462,6 +510,15 @@ def send_all():
             return jsonify({'error': 'Message required'})
 
         results = []
+
+        file_paths_global = upload_paths[:]
+        download_paths = []
+        if global_file_links and not file_paths_global:
+            for file_link in global_file_links:
+                file_path = download_file_from_link(file_link)
+                if file_path:
+                    file_paths_global.append(file_path)
+                    download_paths.append(file_path)
 
         for msg in messages:
             phone = msg.get('phone')
@@ -484,11 +541,15 @@ def send_all():
                 except Exception:
                     pass
 
-                for file_link in file_links:
-                    file_path = download_file_from_link(file_link)
-                    if not file_path:
-                        continue
+                file_paths = file_paths_global[:]
+                if file_links and not file_paths:
+                    for file_link in file_links:
+                        file_path = download_file_from_link(file_link)
+                        if not file_path:
+                            continue
+                        file_paths.append(file_path)
 
+                for file_path in file_paths:
                     attach_button = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//span[@data-icon='clip'] | //span[@data-testid='clip']")))
                     attach_button.click()
 
@@ -496,7 +557,6 @@ def send_all():
                     file_input.send_keys(file_path)
 
                     time.sleep(5)
-                    os.unlink(file_path)
 
                 if not click_send_button(driver):
                     try:
@@ -514,7 +574,19 @@ def send_all():
             interval = random.uniform(min_interval, max_interval)
             time.sleep(interval)
 
-    return jsonify({'status': f'Sent {len(messages)} messages with random intervals', 'results': results})
+    try:
+        return jsonify({'status': f'Sent {len(messages)} messages with random intervals', 'results': results})
+    finally:
+        for path in upload_paths:
+            try:
+                os.unlink(path)
+            except Exception:
+                pass
+        for path in download_paths:
+            try:
+                os.unlink(path)
+            except Exception:
+                pass
 
 @app.route('/health')
 def health():

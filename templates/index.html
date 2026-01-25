@@ -81,6 +81,12 @@
             gap: 15px;
             flex-wrap: wrap;
         }
+        .table-controls .bulk-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
         .table-controls input, .table-controls button, .table-controls label {
             margin: 5px;
         }
@@ -96,6 +102,11 @@
             padding: 8px;
             text-align: center;
             vertical-align: middle;
+        }
+        .row-select {
+            width: 16px;
+            height: 16px;
+            accent-color: #FF0000;
         }
         th {
             background-color: #FF0000;
@@ -211,27 +222,55 @@
             flex-direction: column;
             gap: 10px;
         }
+        .file-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
         .file-row {
             display: grid;
             grid-template-columns: 1fr auto;
             gap: 10px;
             align-items: center;
         }
-        .file-row textarea.link-valid {
-            color: #FF0000;
-            text-decoration: underline;
-        }
-        .file-row textarea {
+        .file-row .file-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
             text-align: left;
-            margin: 0;
-            padding: 6px 8px;
-            min-height: 28px;
-            line-height: 1.4;
-            box-sizing: border-box;
-            resize: none;
+        }
+        .file-row .file-name {
+            font-size: 0.9rem;
+            color: #FFFFFF;
+            word-break: break-all;
+        }
+        .file-row .file-size,
+        .file-row .file-status {
+            font-size: 0.75rem;
+            color: #a1a1aa;
+        }
+        .file-row .file-status.loading {
+            color: #FFD166;
+        }
+        .file-row .file-status.loaded {
+            color: #7CFC98;
+        }
+        .file-row .file-status.error {
+            color: #FF4D4D;
+        }
+        .file-progress {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
             overflow: hidden;
-            white-space: pre-wrap;
-            word-break: break-word;
+        }
+        .file-progress-bar {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, #FF0000, #FF6B6B);
+            transition: width 0.2s ease;
         }
         .file-row button {
             width: 36px;
@@ -247,6 +286,14 @@
         .file-row button:hover {
             color: #FF0000;
             border-color: rgba(255, 255, 255, 0.3);
+        }
+        .history-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .history-actions button {
+            min-width: 44px;
         }
         .file-add {
             margin-top: 12px;
@@ -461,8 +508,13 @@
 
         <h2 class="editor-header" data-i18n="file_section">Archivo</h2>
         <div class="file-section">
+            <input type="file" id="filePicker" multiple style="display: none;" onchange="handleFilePick(event)">
+            <input type="file" id="folderPicker" webkitdirectory directory multiple style="display: none;" onchange="handleFilePick(event)">
             <div id="fileRows" class="file-rows"></div>
-            <button type="button" class="file-add" onclick="addFileRow()"><i class="fas fa-plus"></i> <span data-i18n="add_file">Agregar archivo</span></button>
+            <div class="file-actions">
+                <button type="button" class="file-add" onclick="document.getElementById('filePicker').click()"><i class="fas fa-plus"></i> <span data-i18n="add_file">Agregar archivo</span></button>
+                <button type="button" class="file-add" onclick="document.getElementById('folderPicker').click()"><i class="fas fa-folder-plus"></i> <span data-i18n="add_folder">Agregar carpeta</span></button>
+            </div>
         </div>
 
         <div class="section-header">
@@ -472,6 +524,14 @@
             <button onclick="document.getElementById('importFile').click()" data-i18n="import">Import CSV/XLSX</button>
             <input type="file" id="importFile" accept=".csv,.xlsx" onchange="importFile()" style="display: none;">
             <button onclick="exportResults()" data-i18n="export">Export CSV</button>
+            <div class="history-actions">
+                <button type="button" id="undoBtn" onclick="undoAction()" data-i18n="undo" data-i18n-attr="title,aria-label" title="Undo" aria-label="Undo"><i class="fa-solid fa-rotate-left"></i></button>
+                <button type="button" id="redoBtn" onclick="redoAction()" data-i18n="redo" data-i18n-attr="title,aria-label" title="Redo" aria-label="Redo"><i class="fa-solid fa-rotate-right"></i></button>
+            </div>
+            <div class="bulk-actions">
+                <button type="button" onclick="copyAllRows()" data-i18n="copy_all">Copy all</button>
+                <button type="button" onclick="deleteAllRows()" data-i18n="delete_all">Delete all</button>
+            </div>
             <div class="interval-group" style="display:flex;align-items:center;gap:6px;">
                 <label for="intervalMin" style="margin:0;" data-i18n="interval_label">Random interval (s):</label>
                 <input type="number" id="intervalMin" value="2" min="1" max="10" style="width:60px;">
@@ -484,6 +544,7 @@
         <table id="dataTable">
             <thead>
                 <tr>
+                    <th><input type="checkbox" id="selectAllRows" class="row-select" aria-label="Select all" /></th>
                     <th>#</th>
                     <th data-i18n="country_code">Country code</th>
                     <th data-i18n="phone_number">Phone number</th>
@@ -495,7 +556,7 @@
             <tbody id="tableBody">
                 <!-- Filas dinámicas -->
                 <tr id="addRow">
-                    <td colspan="6" style="text-align: center; padding: 10px;">
+                    <td colspan="7" style="text-align: center; padding: 10px;">
                         <button type="button" onclick="addSingleRow()"><i class="fas fa-plus"></i> <span data-i18n="add_row">Add row</span></button>
                     </td>
                 </tr>
@@ -529,6 +590,11 @@
                 contacts_table: 'Tabla de Contactos',
                 import: 'Importar CSV/XLSX',
                 export: 'Exportar CSV',
+                select_all: 'Seleccionar todo',
+                copy_all: 'Copiar todo',
+                delete_all: 'Eliminar todo',
+                undo: 'Deshacer',
+                redo: 'Rehacer',
                 interval_label: 'Intervalo aleatorio (s):',
                 send_all: 'Enviar Todo',
                 country_code: 'Código de País',
@@ -557,17 +623,23 @@
                 link_prompt: 'Ingresa la URL:',
                 link_text: 'Texto',
                 message_required: 'El mensaje es obligatorio.',
-                add_file: 'Agregar archivo',
+                add_file: 'Agregar archivos',
+                add_folder: 'Agregar carpeta',
+                file_uploading: 'Cargando',
+                file_ready: 'Cargado',
+                file_status_loading: 'Cargando',
+                file_status_loaded: 'Cargado',
+                file_status_error: 'Error',
                 sending: 'Enviando...',
                 sending_in_progress: 'Envío en curso...'
             },
             en: {
                 title: 'DISPATCHER.',
                 whatsapp_title: 'WhatsApp Web',
-                whatsapp_notice: 'Open WhatsApp Web only with the button below.',
+                whatsapp_notice: 'Open WhatsApp Web using the button below.',
                 whatsapp_open: 'Open',
-                whatsapp_open_session_ok: 'WhatsApp window opened. Scan the QR there.',
-                whatsapp_open_session_fail: 'Could not open WhatsApp session.',
+                whatsapp_open_session_ok: 'WhatsApp window opened. Scan the QR code there.',
+                whatsapp_open_session_fail: 'Couldn\'t open WhatsApp session.',
                 status: 'Status',
                 status_pending: 'Pending',
                 status_sent: 'Sent',
@@ -576,6 +648,11 @@
                 contacts_table: 'Contacts table',
                 import: 'Import CSV/XLSX',
                 export: 'Export CSV',
+                select_all: 'Select all',
+                copy_all: 'Duplicate rows',
+                delete_all: 'Delete rows',
+                undo: 'Undo',
+                redo: 'Redo',
                 interval_label: 'Random interval (s):',
                 send_all: 'Send all',
                 country_code: 'Country code',
@@ -587,7 +664,7 @@
                 actions: 'Actions',
                 add_row: 'Add row',
                 message_editor: 'Message editor',
-                file_section: 'File',
+                file_section: 'Files',
                 bold: 'Bold',
                 italic: 'Italic',
                 link: 'Link',
@@ -604,13 +681,47 @@
                 link_prompt: 'Enter the URL:',
                 link_text: 'Text',
                 message_required: 'Message is required.',
-                add_file: 'Add file',
+                add_file: 'Add files',
+                add_folder: 'Add folder',
+                file_uploading: 'Uploading',
+                file_ready: 'Ready',
+                file_status_loading: 'Loading',
+                file_status_loaded: 'Loaded',
+                file_status_error: 'Error',
                 sending: 'Sending...',
-                sending_in_progress: 'Send in progress...'
+                sending_in_progress: 'Sending in progress...'
             }
         };
         let currentLang = 'en';
         let isSending = false;
+
+        const tableBody = document.getElementById('tableBody');
+        const selectAllRowsCheckbox = document.getElementById('selectAllRows');
+        const undoBtn = document.getElementById('undoBtn');
+        const redoBtn = document.getElementById('redoBtn');
+        const messageEditor = document.getElementById('messageEditor');
+        const fileRowsContainer = document.getElementById('fileRows');
+
+        const tableHistory = [];
+        let historyIndex = -1;
+        let historyTimer = null;
+        let isRestoringHistory = false;
+
+        const messageHistory = [];
+        let messageHistoryIndex = -1;
+        let messageHistoryTimer = null;
+        let isRestoringMessage = false;
+
+        const fileHistory = [];
+        let fileHistoryIndex = -1;
+        let fileHistoryTimer = null;
+        let isRestoringFiles = false;
+        const fileStore = new Map();
+        let selectedFileIds = [];
+
+        let activeArea = 'table';
+        let isDragging = false;
+        let anchorCell = null;
 
         function t(key) {
             return translations[currentLang][key] || key;
@@ -645,6 +756,9 @@
                 const label = t(`status_${status}`);
                 badge.textContent = label || status.toUpperCase();
             });
+            if (typeof renderFileList === 'function') {
+                renderFileList();
+            }
         }
 
         function openWhatsAppSession() {
@@ -689,6 +803,7 @@
         // Contador de caracteres para el editor
         document.getElementById('messageEditor').addEventListener('input', function() {
             document.getElementById('editorCharCount').textContent = this.value.length;
+            scheduleMessageHistory();
         });
 
         const langToggleButton = document.getElementById('langToggle');
@@ -699,47 +814,108 @@
             });
         }
         applyTranslations();
-        if (!document.querySelector('#fileRows .file-row')) {
-            addFileRow();
-        }
 
         function addFileRow(value = '') {
-            const container = document.getElementById('fileRows');
-            if (!container) return;
-            const row = document.createElement('div');
-            row.className = 'file-row';
-            row.innerHTML = `
-                <textarea rows="1" inputmode="url" data-i18n-placeholder="placeholder_link" placeholder="${t('placeholder_link')}">${value}</textarea>
-                <button type="button" onclick="removeFileRow(this)" aria-label="${t('delete')}"><i class="fa-regular fa-trash-can"></i></button>
-            `;
-            container.appendChild(row);
-            row.querySelectorAll('textarea').forEach(autoResizeTextarea);
-            updateFileLinkStyles(row.querySelector('textarea'));
-            applyTranslations();
+            return;
         }
 
         function removeFileRow(button) {
-            const row = button.closest('.file-row');
-            if (row) row.remove();
+            return;
         }
 
-        function getFileLinks() {
-            return Array.from(document.querySelectorAll('#fileRows textarea'))
-                .map(field => field.value.trim())
-                .filter(Boolean);
-        }
-
-        function isLikelyUrl(value) {
-            return /^https?:\/\//i.test(value.trim());
-        }
-
-        function updateFileLinkStyles(field) {
-            if (!field) return;
-            if (isLikelyUrl(field.value)) {
-                field.classList.add('link-valid');
-            } else {
-                field.classList.remove('link-valid');
+        function handleFilePick(event) {
+            const files = Array.from(event.target.files || []);
+            if (!files.length) return;
+            activeArea = 'files';
+            updateHistoryButtons();
+            files.forEach(file => {
+                const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                fileStore.set(id, { file, status: 'loading', progress: 0 });
+                selectedFileIds.push(id);
+                const reader = new FileReader();
+                reader.onprogress = (evt) => {
+                    if (!evt.lengthComputable) return;
+                    const percent = Math.min(100, Math.round((evt.loaded / evt.total) * 100));
+                    updateFileEntry(id, { progress: percent });
+                };
+                reader.onload = () => {
+                    updateFileEntry(id, { progress: 100, status: 'loaded' });
+                };
+                reader.onerror = () => {
+                    updateFileEntry(id, { progress: 0, status: 'error' });
+                };
+                reader.readAsArrayBuffer(file);
+            });
+            event.target.value = '';
+            renderFileList();
+            if (!isRestoringFiles) {
+                scheduleFileHistory();
             }
+        }
+
+        function updateFileEntry(id, updates) {
+            const entry = fileStore.get(id);
+            if (!entry) return;
+            fileStore.set(id, { ...entry, ...updates });
+            renderFileList();
+        }
+
+        function renderFileList() {
+            if (!fileRowsContainer) return;
+            fileRowsContainer.innerHTML = '';
+            if (!selectedFileIds.length) return;
+            selectedFileIds.forEach(id => {
+                const entry = fileStore.get(id);
+                if (!entry) return;
+                const file = entry.file;
+                const displayName = file.webkitRelativePath || file.name;
+                const statusLabel = getFileStatusLabel(entry.status);
+                const progressValue = typeof entry.progress === 'number' ? entry.progress : 0;
+                const row = document.createElement('div');
+                row.className = 'file-row';
+                row.innerHTML = `
+                    <div class="file-meta">
+                        <span class="file-name">${displayName}</span>
+                        <div class="file-progress"><div class="file-progress-bar" style="width: ${progressValue}%"></div></div>
+                        <span class="file-status ${entry.status}">${statusLabel}</span>
+                        <span class="file-size">${formatFileSize(file.size)}</span>
+                    </div>
+                    <button type="button" onclick="removeFileById('${id}')" aria-label="${t('delete')}"><i class="fa-regular fa-trash-can"></i></button>
+                `;
+                fileRowsContainer.appendChild(row);
+            });
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes) return '0 KB';
+            const kb = bytes / 1024;
+            if (kb < 1024) return `${Math.ceil(kb)} KB`;
+            const mb = kb / 1024;
+            return `${mb.toFixed(1)} MB`;
+        }
+
+        function getFileStatusLabel(status) {
+            const key = status === 'loaded'
+                ? 'file_status_loaded'
+                : status === 'error'
+                    ? 'file_status_error'
+                    : 'file_status_loading';
+            return t(key);
+        }
+
+        function removeFileById(id) {
+            selectedFileIds = selectedFileIds.filter(entry => entry !== id);
+            renderFileList();
+            if (!isRestoringFiles) {
+                scheduleFileHistory();
+            }
+        }
+
+        function getSelectedFiles() {
+            return selectedFileIds
+                .map(id => fileStore.get(id))
+                .filter(Boolean)
+                .map(entry => entry.file);
         }
 
         function showStatus(message, isError = false) {
@@ -760,6 +936,7 @@
             const addRow = document.getElementById('addRow');
             const row = tbody.insertBefore(document.createElement('tr'), addRow);
             row.innerHTML = `
+                <td><input type="checkbox" class="row-select" aria-label="Select row" /></td>
                 <td data-col="index">0</td>
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_country" placeholder="${t('placeholder_country')}"></textarea></div></td>
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_phone" placeholder="${t('placeholder_phone')}"></textarea></div></td>
@@ -780,8 +957,10 @@
                 </td>
             `;
             row.querySelectorAll('textarea').forEach(autoResizeTextarea);
+            wireRowCheckbox(row);
             applyTranslations();
             renumberRows();
+            pushTableHistory();
         }
         
         function addRowAfter(button) {
@@ -790,6 +969,7 @@
             const addRow = document.getElementById('addRow');
             const newRow = tbody.insertBefore(document.createElement('tr'), addRow);
             newRow.innerHTML = `
+                <td><input type="checkbox" class="row-select" aria-label="Select row" /></td>
                 <td data-col="index">0</td>
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_country" placeholder="${t('placeholder_country')}"></textarea></div></td>
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_phone" placeholder="${t('placeholder_phone')}"></textarea></div></td>
@@ -810,61 +990,40 @@
                 </td>
             `;
             newRow.querySelectorAll('textarea').forEach(autoResizeTextarea);
+            wireRowCheckbox(newRow);
             applyTranslations();
             renumberRows();
+            pushTableHistory();
         }
         
         function copyRow(button) {
             const currentRow = button.closest('tr');
-            const cells = currentRow.cells;
-            const tbody = document.getElementById('tableBody');
-            const addRow = document.getElementById('addRow');
-            const newRow = tbody.insertBefore(document.createElement('tr'), addRow);
-            newRow.innerHTML = `
-                <td data-col="index">0</td>
-                <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true">${getCellValue(cells[1])}</textarea></div></td>
-                <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true">${getCellValue(cells[2])}</textarea></div></td>
-                <td><div class="cell-input"><textarea rows="1">${getCellValue(cells[3])}</textarea></div></td>
-                <td><span class="status-badge status-pending" data-status="pending">${t('status_pending') || 'PENDING'}</span></td>
-                <td>
-                    <div class="action-buttons">
-                        <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">
-                            <i class="fa-brands fa-whatsapp"></i>
-                        </button>
-                        <button onclick="copyRow(this)" data-i18n="copy" data-i18n-attr="title,aria-label" title="${t('copy')}" aria-label="${t('copy')}">
-                            <i class="fa-regular fa-copy"></i>
-                        </button>
-                        <button onclick="deleteRow(this)" data-i18n="delete" data-i18n-attr="title,aria-label" title="${t('delete')}" aria-label="${t('delete')}">
-                            <i class="fa-regular fa-trash-can"></i>
-                        </button>
-                    </div>
-                </td>
-            `;
-            newRow.querySelectorAll('textarea').forEach(autoResizeTextarea);
-            applyTranslations();
-            renumberRows();
+            duplicateRow(currentRow);
+            pushTableHistory();
         }
         
         function sendFromRow(button) {
             const row = button.closest('tr');
             const cells = row.cells;
-            const countryCode = getCellValue(cells[1]);
-            const phone = getCellValue(cells[2]);
-            const name = getCellValue(cells[3]);
+            const countryCode = getCellValue(cells[2]);
+            const phone = getCellValue(cells[3]);
+            const name = getCellValue(cells[4]);
             const message = document.getElementById('messageEditor').value || '';
-            const fileLinks = getFileLinks();
+            const files = getSelectedFiles();
             if (!message.trim()) {
                 showStatus(t('message_required'), true);
                 return;
             }
             setRowStatus(row, 'pending');
-            sendMessage(phone, message, fileLinks, countryCode, name, row);
+            sendMessage(phone, message, files, countryCode, name, row);
         }
         
         function deleteRow(button) {
             const row = button.closest('tr');
             row.remove();
             renumberRows();
+            updateSelectAllCheckbox();
+            pushTableHistory();
         }
         
         function importFile() {
@@ -901,6 +1060,7 @@
                 }
                 const row = tbody.insertBefore(document.createElement('tr'), addRow);
                 row.innerHTML = `
+                    <td><input type="checkbox" class="row-select" aria-label="Select row" /></td>
                     <td data-col="index">0</td>
                     <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_country" placeholder="${t('placeholder_country')}">${item.country_code || ''}</textarea></div></td>
                     <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_phone" placeholder="${t('placeholder_phone')}">${item.phone || ''}</textarea></div></td>
@@ -921,18 +1081,20 @@
                     </td>
                 `;
                 row.querySelectorAll('textarea').forEach(autoResizeTextarea);
+                wireRowCheckbox(row);
             });
             const editor = document.getElementById('messageEditor');
             if (editor && !editor.value && firstMessage) {
                 editor.value = firstMessage;
                 document.getElementById('editorCharCount').textContent = editor.value.length;
             }
-            const fileContainer = document.getElementById('fileRows');
-            if (fileContainer && !fileContainer.children.length) {
-                addFileRow(firstFileLink || '');
+            if (firstFileLink) {
+                renderFileList();
             }
             applyTranslations();
             renumberRows();
+            updateSelectAllCheckbox();
+            pushTableHistory();
         }
         
         function sendAll() {
@@ -943,9 +1105,9 @@
             const rows = Array.from(document.querySelectorAll('#tableBody tr')).filter(row => row.id !== 'addRow');
             const contacts = rows.map(row => {
                 const cells = row.cells;
-                const countryCode = getCellValue(cells[1]);
-                const phone = getCellValue(cells[2]);
-                const name = getCellValue(cells[3]);
+                const countryCode = getCellValue(cells[2]);
+                const phone = getCellValue(cells[3]);
+                const name = getCellValue(cells[4]);
                 return {
                     row_index: row.dataset.rowIndex ? parseInt(row.dataset.rowIndex, 10) : null,
                     country_code: countryCode,
@@ -956,7 +1118,7 @@
             rows.forEach(row => setRowStatus(row, 'pending'));
 
             const message = document.getElementById('messageEditor').value || '';
-            const fileLinks = getFileLinks();
+            const files = getSelectedFiles();
             if (!message.trim()) {
                 showStatus(t('message_required'), true);
                 return;
@@ -967,11 +1129,7 @@
             
             isSending = true;
             showStatus(t('sending'), false);
-            fetch('/send_all', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contacts, message, fileLinks, min_interval: minInterval, max_interval: maxInterval })
-            })
+            sendPayload('/send_all', { contacts, message, min_interval: minInterval, max_interval: maxInterval }, files)
             .then(async response => {
                 const text = await response.text();
                 let data = {};
@@ -1051,18 +1209,14 @@
             }
         }
         
-        function sendMessage(phone, message, fileLinks, countryCode, name, row) {
+        function sendMessage(phone, message, files, countryCode, name, row) {
             if (isSending) {
                 showStatus(t('sending_in_progress'), true);
                 return;
             }
             isSending = true;
             showStatus(t('sending'), false);
-            fetch('/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, message, fileLinks, country_code: countryCode, name, row_index: row ? parseInt(row.dataset.rowIndex, 10) : null })
-            })
+            sendPayload('/send', { phone, message, country_code: countryCode, name, row_index: row ? parseInt(row.dataset.rowIndex, 10) : null }, files)
             .then(async response => {
                 const text = await response.text();
                 let data = {};
@@ -1100,9 +1254,9 @@
             rows.forEach(row => {
                 const cells = row.cells;
                 if (!cells || cells.length < 4) return;
-                const countryCode = getCellValue(cells[1]);
-                const phone = getCellValue(cells[2]);
-                const name = getCellValue(cells[3]);
+                const countryCode = getCellValue(cells[2]);
+                const phone = getCellValue(cells[3]);
+                const name = getCellValue(cells[4]);
                 csv += `"${countryCode}","${phone}","${name}"\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -1120,20 +1274,308 @@
             window.open('https://web.whatsapp.com', '_blank');
         }
 
-        const tableBody = document.getElementById('tableBody');
-        let isDragging = false;
-        let anchorCell = null;
+        function sendPayload(url, payload, files) {
+            if (files && files.length) {
+                const formData = new FormData();
+                formData.append('payload', JSON.stringify(payload));
+                files.forEach(file => {
+                    formData.append('files', file, file.name);
+                });
+                return fetch(url, { method: 'POST', body: formData });
+            }
+            return fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
+
+        function normaliseNumeric(value) {
+            return String(value || '').replace(/\D+/g, '');
+        }
+
+        function getDataRows() {
+            return Array.from(tableBody.querySelectorAll('tr')).filter(r => r.id !== 'addRow');
+        }
+
+        function wireRowCheckbox(row) {
+            const checkbox = row.querySelector('input.row-select');
+            if (!checkbox || checkbox.dataset.wired) return;
+            checkbox.dataset.wired = 'true';
+            checkbox.addEventListener('change', updateSelectAllCheckbox);
+        }
+
+        function updateSelectAllCheckbox() {
+            if (!selectAllRowsCheckbox) return;
+            const rows = getDataRows();
+            if (!rows.length) {
+                selectAllRowsCheckbox.checked = false;
+                selectAllRowsCheckbox.indeterminate = false;
+                return;
+            }
+            const checked = rows.filter(row => row.querySelector('input.row-select')?.checked);
+            selectAllRowsCheckbox.checked = checked.length === rows.length;
+            selectAllRowsCheckbox.indeterminate = checked.length > 0 && checked.length < rows.length;
+        }
+
+        function getSelectedRows() {
+            return getDataRows().filter(row => row.querySelector('input.row-select')?.checked);
+        }
+
+        function getTargetRowsForBulk() {
+            const selected = getSelectedRows();
+            return selected.length ? selected : getDataRows();
+        }
+
+        function getTableState() {
+            return getDataRows().map(row => {
+                const cells = row.cells;
+                const badge = row.querySelector('.status-badge');
+                return {
+                    country_code: normaliseNumeric(getCellValue(cells[2])),
+                    phone: normaliseNumeric(getCellValue(cells[3])),
+                    name: getCellValue(cells[4]),
+                    status: badge?.dataset.status || 'pending'
+                };
+            });
+        }
+
+        function applyTableState(state) {
+            isRestoringHistory = true;
+            const tbody = document.getElementById('tableBody');
+            const addRow = document.getElementById('addRow');
+            while (tbody.firstChild !== addRow) {
+                tbody.removeChild(tbody.firstChild);
+            }
+            state.forEach(item => {
+                const status = item.status || 'pending';
+                const statusLabel = t(`status_${status}`) || status.toUpperCase();
+                const row = tbody.insertBefore(document.createElement('tr'), addRow);
+                row.innerHTML = `
+                    <td><input type="checkbox" class="row-select" aria-label="Select row" /></td>
+                    <td data-col="index">0</td>
+                    <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_country" placeholder="${t('placeholder_country')}">${normaliseNumeric(item.country_code)}</textarea></div></td>
+                    <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_phone" placeholder="${t('placeholder_phone')}">${normaliseNumeric(item.phone)}</textarea></div></td>
+                    <td><div class="cell-input"><textarea rows="1" data-i18n-placeholder="placeholder_name" placeholder="${t('placeholder_name')}">${item.name || ''}</textarea></div></td>
+                    <td><span class="status-badge status-${status}" data-status="${status}">${statusLabel}</span></td>
+                    <td>
+                        <div class="action-buttons">
+                            <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">
+                                <i class="fa-brands fa-whatsapp"></i>
+                            </button>
+                            <button onclick="copyRow(this)" data-i18n="copy" data-i18n-attr="title,aria-label" title="${t('copy')}" aria-label="${t('copy')}">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                            <button onclick="deleteRow(this)" data-i18n="delete" data-i18n-attr="title,aria-label" title="${t('delete')}" aria-label="${t('delete')}">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                row.querySelectorAll('textarea').forEach(autoResizeTextarea);
+                wireRowCheckbox(row);
+            });
+            applyTranslations();
+            renumberRows();
+            updateSelectAllCheckbox();
+            isRestoringHistory = false;
+        }
+
+        function pushTableHistory() {
+            if (isRestoringHistory) return;
+            const state = getTableState();
+            const last = tableHistory[historyIndex];
+            const snapshot = JSON.stringify(state);
+            if (last && JSON.stringify(last) === snapshot) return;
+            tableHistory.splice(historyIndex + 1);
+            tableHistory.push(state);
+            historyIndex = tableHistory.length - 1;
+            updateHistoryButtons();
+        }
+
+        function scheduleHistoryCapture() {
+            if (isRestoringHistory) return;
+            if (historyTimer) window.clearTimeout(historyTimer);
+            historyTimer = window.setTimeout(() => {
+                pushTableHistory();
+                historyTimer = null;
+            }, 300);
+        }
+
+        function commitHistoryNow() {
+            if (historyTimer) {
+                window.clearTimeout(historyTimer);
+                historyTimer = null;
+            }
+            pushTableHistory();
+        }
+
+        function updateHistoryButtons() {
+            if (!undoBtn || !redoBtn) return;
+            if (activeArea === 'message') {
+                undoBtn.disabled = messageHistoryIndex <= 0;
+                redoBtn.disabled = messageHistoryIndex >= messageHistory.length - 1;
+                return;
+            }
+            if (activeArea === 'files') {
+                undoBtn.disabled = fileHistoryIndex <= 0;
+                redoBtn.disabled = fileHistoryIndex >= fileHistory.length - 1;
+                return;
+            }
+            undoBtn.disabled = historyIndex <= 0;
+            redoBtn.disabled = historyIndex >= tableHistory.length - 1;
+        }
+
+        function undoTable() {
+            commitHistoryNow();
+            if (historyIndex <= 0) return;
+            historyIndex -= 1;
+            applyTableState(tableHistory[historyIndex]);
+            updateHistoryButtons();
+        }
+
+        function redoTable() {
+            commitHistoryNow();
+            if (historyIndex >= tableHistory.length - 1) return;
+            historyIndex += 1;
+            applyTableState(tableHistory[historyIndex]);
+            updateHistoryButtons();
+        }
+
+        function getMessageState() {
+            return messageEditor ? messageEditor.value : '';
+        }
+
+        function applyMessageState(value) {
+            if (!messageEditor) return;
+            isRestoringMessage = true;
+            messageEditor.value = value || '';
+            document.getElementById('editorCharCount').textContent = messageEditor.value.length;
+            isRestoringMessage = false;
+        }
+
+        function pushMessageHistory() {
+            if (isRestoringMessage) return;
+            const value = getMessageState();
+            const last = messageHistory[messageHistoryIndex];
+            if (last === value) return;
+            messageHistory.splice(messageHistoryIndex + 1);
+            messageHistory.push(value);
+            messageHistoryIndex = messageHistory.length - 1;
+            updateHistoryButtons();
+        }
+
+        function scheduleMessageHistory() {
+            if (isRestoringMessage) return;
+            if (messageHistoryTimer) window.clearTimeout(messageHistoryTimer);
+            messageHistoryTimer = window.setTimeout(() => {
+                pushMessageHistory();
+                messageHistoryTimer = null;
+            }, 300);
+        }
+
+        function commitMessageHistoryNow() {
+            if (messageHistoryTimer) {
+                window.clearTimeout(messageHistoryTimer);
+                messageHistoryTimer = null;
+            }
+            pushMessageHistory();
+        }
+
+        function undoMessage() {
+            commitMessageHistoryNow();
+            if (messageHistoryIndex <= 0) return;
+            messageHistoryIndex -= 1;
+            applyMessageState(messageHistory[messageHistoryIndex]);
+            updateHistoryButtons();
+        }
+
+        function redoMessage() {
+            commitMessageHistoryNow();
+            if (messageHistoryIndex >= messageHistory.length - 1) return;
+            messageHistoryIndex += 1;
+            applyMessageState(messageHistory[messageHistoryIndex]);
+            updateHistoryButtons();
+        }
+
+        function getFileState() {
+            return [...selectedFileIds];
+        }
+
+        function applyFileState(values) {
+            if (!fileRowsContainer) return;
+            isRestoringFiles = true;
+            selectedFileIds = Array.isArray(values) ? values.filter(id => fileStore.has(id)) : [];
+            renderFileList();
+            isRestoringFiles = false;
+        }
+
+        function pushFileHistory() {
+            if (isRestoringFiles) return;
+            const values = getFileState();
+            const last = fileHistory[fileHistoryIndex];
+            if (last && JSON.stringify(last) === JSON.stringify(values)) return;
+            fileHistory.splice(fileHistoryIndex + 1);
+            fileHistory.push(values);
+            fileHistoryIndex = fileHistory.length - 1;
+            updateHistoryButtons();
+        }
+
+        function scheduleFileHistory() {
+            if (isRestoringFiles) return;
+            if (fileHistoryTimer) window.clearTimeout(fileHistoryTimer);
+            fileHistoryTimer = window.setTimeout(() => {
+                pushFileHistory();
+                fileHistoryTimer = null;
+            }, 300);
+        }
+
+        function commitFileHistoryNow() {
+            if (fileHistoryTimer) {
+                window.clearTimeout(fileHistoryTimer);
+                fileHistoryTimer = null;
+            }
+            pushFileHistory();
+        }
+
+        function undoFiles() {
+            commitFileHistoryNow();
+            if (fileHistoryIndex <= 0) return;
+            fileHistoryIndex -= 1;
+            applyFileState(fileHistory[fileHistoryIndex]);
+            updateHistoryButtons();
+        }
+
+        function redoFiles() {
+            commitFileHistoryNow();
+            if (fileHistoryIndex >= fileHistory.length - 1) return;
+            fileHistoryIndex += 1;
+            applyFileState(fileHistory[fileHistoryIndex]);
+            updateHistoryButtons();
+        }
+
+        function undoAction() {
+            if (activeArea === 'message') return undoMessage();
+            if (activeArea === 'files') return undoFiles();
+            return undoTable();
+        }
+
+        function redoAction() {
+            if (activeArea === 'message') return redoMessage();
+            if (activeArea === 'files') return redoFiles();
+            return redoTable();
+        }
 
         function getCellCoords(cell) {
             const row = cell.parentElement;
-            const rows = Array.from(tableBody.querySelectorAll('tr')).filter(r => r.id !== 'addRow');
+            const rows = getDataRows();
             const rowIndex = rows.indexOf(row);
             const colIndex = Array.from(row.children).indexOf(cell);
             return { rowIndex, colIndex };
         }
 
         function getCellAt(rowIndex, colIndex) {
-            const rows = Array.from(tableBody.querySelectorAll('tr')).filter(r => r.id !== 'addRow');
+            const rows = getDataRows();
             if (rowIndex < 0 || rowIndex >= rows.length) return null;
             const cells = rows[rowIndex].children;
             if (colIndex < 0 || colIndex >= cells.length) return null;
@@ -1160,6 +1602,87 @@
                 }
             }
         }
+
+        function selectAllRows() {
+            const rows = getDataRows();
+            if (!rows.length) return;
+            rows.forEach(row => {
+                const checkbox = row.querySelector('input.row-select');
+                if (checkbox) checkbox.checked = true;
+            });
+            updateSelectAllCheckbox();
+        }
+
+        async function copyAllRows() {
+            const rows = getTargetRowsForBulk();
+            if (!rows.length) return;
+            rows.forEach(row => duplicateRow(row));
+            pushTableHistory();
+        }
+
+        function deleteAllRows() {
+            const rows = getTargetRowsForBulk();
+            if (!rows.length) return;
+            rows.forEach(row => row.remove());
+            renumberRows();
+            updateSelectAllCheckbox();
+            pushTableHistory();
+        }
+
+        function duplicateRow(sourceRow) {
+            if (!sourceRow) return;
+            const cells = sourceRow.cells;
+            const tbody = document.getElementById('tableBody');
+            const addRow = document.getElementById('addRow');
+            const newRow = tbody.insertBefore(document.createElement('tr'), addRow);
+            newRow.innerHTML = `
+                <td><input type="checkbox" class="row-select" aria-label="Select row" /></td>
+                <td data-col="index">0</td>
+                <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true">${getCellValue(cells[2])}</textarea></div></td>
+                <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true">${getCellValue(cells[3])}</textarea></div></td>
+                <td><div class="cell-input"><textarea rows="1">${getCellValue(cells[4])}</textarea></div></td>
+                <td><span class="status-badge status-pending" data-status="pending">${t('status_pending') || 'PENDING'}</span></td>
+                <td>
+                    <div class="action-buttons">
+                        <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">
+                            <i class="fa-brands fa-whatsapp"></i>
+                        </button>
+                        <button onclick="copyRow(this)" data-i18n="copy" data-i18n-attr="title,aria-label" title="${t('copy')}" aria-label="${t('copy')}">
+                            <i class="fa-regular fa-copy"></i>
+                        </button>
+                        <button onclick="deleteRow(this)" data-i18n="delete" data-i18n-attr="title,aria-label" title="${t('delete')}" aria-label="${t('delete')}">
+                            <i class="fa-regular fa-trash-can"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            newRow.querySelectorAll('textarea').forEach(autoResizeTextarea);
+            wireRowCheckbox(newRow);
+            applyTranslations();
+            renumberRows();
+            updateSelectAllCheckbox();
+        }
+
+        if (selectAllRowsCheckbox) {
+            selectAllRowsCheckbox.addEventListener('change', () => {
+                const rows = getDataRows();
+                rows.forEach(row => {
+                    const checkbox = row.querySelector('input.row-select');
+                    if (checkbox) checkbox.checked = selectAllRowsCheckbox.checked;
+                });
+                updateSelectAllCheckbox();
+            });
+        }
+
+        const tableObserver = new MutationObserver(() => {
+            scheduleHistoryCapture();
+        });
+        tableObserver.observe(tableBody, { childList: true, subtree: true });
+
+        pushTableHistory();
+        updateHistoryButtons();
+        pushMessageHistory();
+        pushFileHistory();
 
         tableBody.addEventListener('mousedown', (event) => {
             if (event.target.closest('input, textarea')) {
@@ -1237,9 +1760,16 @@
                     const cell = getCellAt(start.rowIndex + rIndex, start.colIndex + cIndex);
                     if (!cell) return;
                     const input = cell.querySelector('input, textarea');
-                    if (input) input.value = val;
+                    if (input) {
+                        if (input.matches('textarea[data-numeric="true"]')) {
+                            input.value = normaliseNumeric(val);
+                        } else {
+                            input.value = val;
+                        }
+                    }
                 });
             });
+            scheduleHistoryCapture();
         }
 
         function autoResizeTextarea(textarea) {
@@ -1251,22 +1781,28 @@
             const textarea = event.target.closest('textarea');
             if (textarea && textarea.closest('#dataTable')) {
                 autoResizeTextarea(textarea);
+                scheduleHistoryCapture();
             }
         });
 
-        document.addEventListener('input', (event) => {
-            const textarea = event.target.closest('#fileRows textarea');
-            if (!textarea) return;
-            autoResizeTextarea(textarea);
-        });
-
-        document.addEventListener('input', (event) => {
-            const field = event.target.closest('#fileRows textarea');
-            if (!field) return;
-            updateFileLinkStyles(field);
-        });
-
         document.querySelectorAll('#dataTable textarea').forEach(autoResizeTextarea);
+
+        document.addEventListener('focusin', (event) => {
+            if (event.target === messageEditor) {
+                activeArea = 'message';
+                updateHistoryButtons();
+                return;
+            }
+            if (event.target.closest && event.target.closest('#fileRows')) {
+                activeArea = 'files';
+                updateHistoryButtons();
+                return;
+            }
+            if (event.target.closest && event.target.closest('#dataTable')) {
+                activeArea = 'table';
+                updateHistoryButtons();
+            }
+        });
 
         document.addEventListener('keydown', (event) => {
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
@@ -1274,6 +1810,27 @@
             }
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
                 pasteFromClipboard();
+            }
+            const inTable = event.target.closest && event.target.closest('#dataTable');
+            const inMessage = event.target === messageEditor;
+            const inFiles = event.target.closest && event.target.closest('#fileRows');
+            if (inMessage) activeArea = 'message';
+            if (inFiles) activeArea = 'files';
+            if (inTable) activeArea = 'table';
+            if ((event.ctrlKey || event.metaKey) && (inTable || inMessage || inFiles)) {
+                const key = event.key.toLowerCase();
+                if (key === 'z') {
+                    event.preventDefault();
+                    if (event.shiftKey) {
+                        redoAction();
+                    } else {
+                        undoAction();
+                    }
+                }
+                if (key === 'y') {
+                    event.preventDefault();
+                    redoAction();
+                }
             }
         });
 
@@ -1285,6 +1842,7 @@
                 const pos = field.selectionStart;
                 field.value = cleaned;
                 field.setSelectionRange(Math.min(pos, cleaned.length), Math.min(pos, cleaned.length));
+                scheduleHistoryCapture();
             }
         });
     </script>

@@ -5,6 +5,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -31,8 +34,21 @@ jobs:
         run: |
           pyinstaller --noconfirm --clean DISPATCHER.spec
 
+      - name: Package EXE
+        run: |
+          powershell -Command "Compress-Archive -Path dist/DISPATCHER/* -DestinationPath DISPATCHER-windows.zip -Force"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: DISPATCHER-windows
-          path: dist/DISPATCHER/**
+          path: DISPATCHER-windows.zip
+
+      - name: Publish Release
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Windows build ${{ github.run_number }}
+          body: "Windows .exe build for DISPATCHER. Download the zip below."
+          files: DISPATCHER-windows.zip

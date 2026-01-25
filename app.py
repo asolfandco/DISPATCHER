@@ -119,6 +119,12 @@ def get_driver():
     options.add_argument("--no-default-browser-check")
     options.add_argument("--remote-allow-origins=*")
     options.add_argument("--window-size=1280,900")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option("useAutomationExtension", False)
+    user_agent = os.getenv("WHATSAPP_USER_AGENT")
+    if user_agent:
+        options.add_argument(f"--user-agent={user_agent}")
     profile_dir = os.getenv("WHATSAPP_PROFILE_DIR", "/tmp/whatsapp-profile")
     if not ensure_profile_dir(profile_dir):
         profile_dir = "/tmp/whatsapp-profile"
@@ -178,6 +184,8 @@ def ensure_logged_in(driver):
         return True
     except TimeoutException:
         return False
+
+
 
 def wait_for_chat_input(driver, timeout=30):
     wait = WebDriverWait(driver, timeout)

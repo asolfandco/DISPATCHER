@@ -1,0 +1,6 @@
+flask
+selenium
+requests
+pandas
+openpyxl
+pyinstaller

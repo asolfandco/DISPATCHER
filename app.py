@@ -280,13 +280,15 @@ def click_send_button(driver):
         "//button[@data-testid='compose-btn-send']",
         "//span[@data-testid='send']"
     ]
-    for xpath in xpaths:
-        try:
-            button = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, xpath)))
-            button.click()
-            return True
-        except TimeoutException:
-            continue
+    for _ in range(2):
+        for xpath in xpaths:
+            try:
+                button = WebDriverWait(driver, 8).until(EC.element_to_be_clickable((By.XPATH, xpath)))
+                button.click()
+                return True
+            except TimeoutException:
+                continue
+        time.sleep(0.5)
     return False
 
 def normalize_file_links(data):
@@ -408,6 +410,10 @@ def send():
             encoded_message = quote(message)
             driver.get(f"https://web.whatsapp.com/send?phone={phone}&text={encoded_message}&app_absent=0")
             chat_input = wait_for_chat_input(driver, 30)
+            try:
+                chat_input.click()
+            except Exception:
+                pass
 
             for file_link in file_links:
                 file_path = download_file_from_link(file_link)
@@ -424,7 +430,10 @@ def send():
                 os.unlink(file_path)
 
             if not click_send_button(driver):
-                chat_input.send_keys(Keys.ENTER)
+                try:
+                    chat_input.send_keys(Keys.ENTER)
+                except Exception:
+                    pass
             time.sleep(2)
             return jsonify({'status': 'Message sent', 'row_index': row_index})
         except Exception as e:
@@ -467,6 +476,10 @@ def send_all():
                 encoded_message = quote(message)
                 driver.get(f"https://web.whatsapp.com/send?phone={phone}&text={encoded_message}&app_absent=0")
                 chat_input = wait_for_chat_input(driver, 30)
+                try:
+                    chat_input.click()
+                except Exception:
+                    pass
 
                 for file_link in file_links:
                     file_path = download_file_from_link(file_link)
@@ -483,7 +496,10 @@ def send_all():
                     os.unlink(file_path)
 
                 if not click_send_button(driver):
-                    chat_input.send_keys(Keys.ENTER)
+                    try:
+                        chat_input.send_keys(Keys.ENTER)
+                    except Exception:
+                        pass
                 time.sleep(2)
                 results.append({'row_index': row_index, 'status': 'sent'})
             except Exception as e:
@@ -504,7 +520,7 @@ if __name__ == '__main__':
         if os.getenv("DISPATCHER_AUTO_OPEN", "1") == "1":
             time.sleep(1.5)
             webbrowser.open("http://127.0.0.1:5000")
-        if os.getenv("DISPATCHER_AUTO_OPEN_SELENIUM", "1") == "1":
+        if os.getenv("DISPATCHER_AUTO_OPEN_SELENIUM", "0") == "1":
             try:
                 driver = get_driver()
                 with driver_lock:

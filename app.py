@@ -83,6 +83,65 @@ def download_chromedriver(chrome_version):
     return None
 
 
+def download_chrome_for_testing():
+    platform_map = {
+        "nt": "win64",
+        "posix": "linux64"
+    }
+    platform = platform_map.get(os.name)
+    if not platform:
+        return None, None
+
+    url = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json"
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        stable = data.get("channels", {}).get("Stable", {})
+        version = stable.get("version")
+        downloads = stable.get("downloads", {})
+        chrome_url = next((d["url"] for d in downloads.get("chrome", []) if d.get("platform") == platform), None)
+        driver_url = next((d["url"] for d in downloads.get("chromedriver", []) if d.get("platform") == platform), None)
+        if not (version and chrome_url and driver_url):
+            return None, None
+
+        dest_dir = os.path.join(tempfile.gettempdir(), f"chrome-for-testing-{version}")
+        chrome_path = os.path.join(dest_dir, f"chrome-{platform}", "chrome.exe" if os.name == "nt" else "chrome")
+        driver_path = os.path.join(dest_dir, f"chromedriver-{platform}", "chromedriver.exe" if os.name == "nt" else "chromedriver")
+
+        if os.path.isfile(chrome_path) and os.path.isfile(driver_path):
+            return chrome_path, driver_path
+
+        os.makedirs(dest_dir, exist_ok=True)
+        chrome_zip = os.path.join(dest_dir, "chrome.zip")
+        driver_zip = os.path.join(dest_dir, "chromedriver.zip")
+
+        chrome_resp = requests.get(chrome_url, timeout=60)
+        chrome_resp.raise_for_status()
+        with open(chrome_zip, "wb") as f:
+            f.write(chrome_resp.content)
+
+        driver_resp = requests.get(driver_url, timeout=60)
+        driver_resp.raise_for_status()
+        with open(driver_zip, "wb") as f:
+            f.write(driver_resp.content)
+
+        with zipfile.ZipFile(chrome_zip) as zf:
+            zf.extractall(dest_dir)
+        with zipfile.ZipFile(driver_zip) as zf:
+            zf.extractall(dest_dir)
+
+        if os.path.isfile(chrome_path) and os.path.isfile(driver_path):
+            if os.name != "nt":
+                os.chmod(chrome_path, 0o755)
+                os.chmod(driver_path, 0o755)
+            return chrome_path, driver_path
+    except Exception:
+        return None, None
+
+    return None, None
+
+
 def ensure_profile_dir(path):
     try:
         os.makedirs(path, exist_ok=True)
@@ -142,6 +201,13 @@ def get_driver():
             if flag:
                 options.add_argument(flag)
     chrome_path, _chrome_version = get_chrome_info()
+    if not chrome_path:
+        chrome_path, downloaded_driver = download_chrome_for_testing()
+        if chrome_path and downloaded_driver:
+            options.binary_location = chrome_path
+            service = Service(downloaded_driver, log_path="/tmp/chromedriver.log")
+            driver_instance = webdriver.Chrome(service=service, options=options)
+            return driver_instance
     if chrome_path:
         options.binary_location = chrome_path
     # Prefer a downloaded chromedriver compatible with this Chrome

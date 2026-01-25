@@ -126,9 +126,10 @@ def get_driver():
     user_agent = os.getenv("WHATSAPP_USER_AGENT")
     if user_agent:
         options.add_argument(f"--user-agent={user_agent}")
-    profile_dir = os.getenv("WHATSAPP_PROFILE_DIR", "/tmp/whatsapp-profile")
+    default_profile = os.path.join(os.path.expanduser("~"), "DispatcherWhatsAppProfile")
+    profile_dir = os.getenv("WHATSAPP_PROFILE_DIR", default_profile)
     if not ensure_profile_dir(profile_dir):
-        profile_dir = "/tmp/whatsapp-profile"
+        profile_dir = default_profile
         ensure_profile_dir(profile_dir)
     options.add_argument(f"--user-data-dir={profile_dir}")
     extra_flags = os.getenv("CHROME_FLAGS")
@@ -227,6 +228,14 @@ def normalize_file_links(data):
     if single_link:
         return [single_link]
     return []
+
+
+@app.route('/open_whatsapp', methods=['POST'])
+def open_whatsapp():
+    driver = get_driver()
+    with driver_lock:
+        driver.get("https://web.whatsapp.com")
+    return jsonify({'status': 'opened'})
 
 @app.route('/')
 def index():

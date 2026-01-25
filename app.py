@@ -106,7 +106,10 @@ def get_driver():
 
     options = Options()
     headless_env = os.getenv("WHATSAPP_HEADLESS", "0") == "1"
-    headless = headless_env or not os.getenv("DISPLAY")
+    if os.name == "nt":
+        headless = headless_env
+    else:
+        headless = headless_env or not os.getenv("DISPLAY")
     if headless:
         options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
@@ -399,6 +402,13 @@ if __name__ == '__main__':
         if os.getenv("DISPATCHER_AUTO_OPEN", "1") == "1":
             time.sleep(1.5)
             webbrowser.open("http://127.0.0.1:5000")
+        if os.getenv("DISPATCHER_AUTO_OPEN_SELENIUM", "1") == "1":
+            try:
+                driver = get_driver()
+                with driver_lock:
+                    driver.get("https://web.whatsapp.com")
+            except Exception:
+                pass
 
     threading.Thread(target=open_ui, daemon=True).start()
     try:

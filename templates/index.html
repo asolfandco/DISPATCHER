@@ -407,12 +407,6 @@
             margin-top: 0;
             margin-bottom: 0;
         }
-        .whatsapp-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-        }
     </style>
 </head>
 <body>
@@ -435,10 +429,7 @@
         <div class="whatsapp-header">
             <h2 data-i18n="whatsapp_title">WhatsApp Web</h2>
             <p data-i18n="whatsapp_notice">Can't be embedded here due to security policies.</p>
-            <div class="whatsapp-actions">
-                <button onclick="window.open('https://web.whatsapp.com', '_blank')" data-i18n="whatsapp_open">Open WhatsApp Web in a new tab</button>
-                <button type="button" onclick="openWhatsAppSession()" data-i18n="whatsapp_open_session">Open WhatsApp session (Selenium)</button>
-            </div>
+            <button onclick="window.open('https://web.whatsapp.com', '_blank')" data-i18n="whatsapp_open">Open WhatsApp Web in a new tab</button>
         </div>
 
         
@@ -511,9 +502,6 @@
                 whatsapp_title: 'WhatsApp Web',
                 whatsapp_notice: 'No puede embeberse aquí por políticas de seguridad.',
                 whatsapp_open: 'Abrir WhatsApp Web en nueva pestaña',
-                whatsapp_open_session: 'Abrir sesión de WhatsApp (Selenium)',
-                whatsapp_open_session_ok: 'Se abrió la ventana de WhatsApp. Escanea el QR allí.',
-                whatsapp_open_session_fail: 'No se pudo abrir la sesión de WhatsApp.',
                 contacts_table: 'Tabla de Contactos',
                 import: 'Importar CSV/XLSX',
                 export: 'Exportar CSV',
@@ -553,9 +541,6 @@
                 whatsapp_title: 'WhatsApp Web',
                 whatsapp_notice: "Can't be embedded here due to security policies.",
                 whatsapp_open: 'Open WhatsApp Web in a new tab',
-                whatsapp_open_session: 'Open WhatsApp session (Selenium)',
-                whatsapp_open_session_ok: 'WhatsApp window opened. Scan the QR there.',
-                whatsapp_open_session_fail: 'Could not open WhatsApp session.',
                 contacts_table: 'Contacts table',
                 import: 'Import CSV/XLSX',
                 export: 'Export CSV',
@@ -624,20 +609,6 @@
             }
         }
 
-        function openWhatsAppSession() {
-            fetch('/open_whatsapp', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data && data.status === 'opened') {
-                        alert(t('whatsapp_open_session_ok'));
-                    } else {
-                        alert(t('whatsapp_open_session_fail'));
-                    }
-                })
-                .catch(() => {
-                    alert(t('whatsapp_open_session_fail'));
-                });
-        }
 
 
         // Contador de caracteres para el editor

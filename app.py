@@ -18,6 +18,7 @@ import random
 import subprocess
 import re
 import zipfile
+import webbrowser
 from urllib.parse import quote
 from werkzeug.exceptions import HTTPException
 
@@ -385,8 +386,14 @@ def health():
     return jsonify({'status': 'OK'})
 
 if __name__ == '__main__':
+    def open_ui():
+        if os.getenv("DISPATCHER_AUTO_OPEN", "1") == "1":
+            time.sleep(1.5)
+            webbrowser.open("http://127.0.0.1:5000")
+
+    threading.Thread(target=open_ui, daemon=True).start()
     try:
         from waitress import serve
-        serve(app, host='0.0.0.0', port=5000)
+        serve(app, host='127.0.0.1', port=5000)
     except Exception:
-        app.run(host='0.0.0.0', debug=False, use_reloader=False)
+        app.run(host='127.0.0.1', debug=False, use_reloader=False)

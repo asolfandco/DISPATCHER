@@ -25,11 +25,12 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='DISPATCHER',
+    icon='icon.ico',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
+    console=False,
 )
 
 coll = COLLECT(

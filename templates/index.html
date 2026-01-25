@@ -167,6 +167,21 @@
         td.selected {
             background-color: rgba(255, 0, 0, 0.25);
         }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 6px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+        }
+        .status-pending { background: rgba(255,255,255,0.1); color: #e4e4e7; }
+        .status-sent { background: rgba(124,252,152,0.2); color: #7CFC98; }
+        .status-error { background: rgba(255,77,77,0.2); color: #FF4D4D; }
+        .status-skipped { background: rgba(255,255,255,0.08); color: #A1A1AA; }
         .message-editor textarea {
             width: 100%;
             box-sizing: border-box;
@@ -429,7 +444,7 @@
         <div class="whatsapp-header">
             <h2 data-i18n="whatsapp_title">WhatsApp Web</h2>
             <p data-i18n="whatsapp_notice">Can't be embedded here due to security policies.</p>
-            <button onclick="window.open('https://web.whatsapp.com', '_blank')" data-i18n="whatsapp_open">Open WhatsApp Web in a new tab</button>
+            <button onclick="openWhatsAppSession()" data-i18n="whatsapp_open">Open WhatsApp Web in a new tab</button>
         </div>
 
         
@@ -469,16 +484,18 @@
         <table id="dataTable">
             <thead>
                 <tr>
+                    <th>#</th>
                     <th data-i18n="country_code">Country code</th>
                     <th data-i18n="phone_number">Phone number</th>
                     <th data-i18n="name">Name</th>
+                    <th data-i18n="status">Estado</th>
                     <th data-i18n="actions">Actions</th>
                 </tr>
             </thead>
             <tbody id="tableBody">
                 <!-- Filas dinámicas -->
                 <tr id="addRow">
-                    <td colspan="4" style="text-align: center; padding: 10px;">
+                    <td colspan="6" style="text-align: center; padding: 10px;">
                         <button type="button" onclick="addSingleRow()"><i class="fas fa-plus"></i> <span data-i18n="add_row">Add row</span></button>
                     </td>
                 </tr>
@@ -501,7 +518,9 @@
                 title: 'DISPATCHER.',
                 whatsapp_title: 'WhatsApp Web',
                 whatsapp_notice: 'No puede embeberse aquí por políticas de seguridad.',
-                whatsapp_open: 'Abrir WhatsApp Web en nueva pestaña',
+                whatsapp_open: 'Abrir WhatsApp Web (Chrome)',
+                whatsapp_open_session_ok: 'Se abrió la ventana de WhatsApp. Escanea el QR allí.',
+                whatsapp_open_session_fail: 'No se pudo abrir la sesión de WhatsApp.',
                 contacts_table: 'Tabla de Contactos',
                 import: 'Importar CSV/XLSX',
                 export: 'Exportar CSV',
@@ -510,6 +529,7 @@
                 country_code: 'Código de País',
                 phone_number: 'Número de Teléfono',
                 name: 'Nombre',
+                status: 'Estado',
                 message: 'Mensaje',
                 file_link: 'Archivo (Link)',
                 actions: 'Acciones',
@@ -540,7 +560,9 @@
                 title: 'DISPATCHER.',
                 whatsapp_title: 'WhatsApp Web',
                 whatsapp_notice: "Can't be embedded here due to security policies.",
-                whatsapp_open: 'Open WhatsApp Web in a new tab',
+                whatsapp_open: 'Open WhatsApp Web (Chrome)',
+                whatsapp_open_session_ok: 'WhatsApp window opened. Scan the QR there.',
+                whatsapp_open_session_fail: 'Could not open WhatsApp session.',
                 contacts_table: 'Contacts table',
                 import: 'Import CSV/XLSX',
                 export: 'Export CSV',
@@ -549,6 +571,7 @@
                 country_code: 'Country code',
                 phone_number: 'Phone number',
                 name: 'Name',
+                status: 'Status',
                 message: 'Message',
                 file_link: 'File (link)',
                 actions: 'Actions',
@@ -606,6 +629,41 @@
                 if (label) {
                     label.textContent = currentLang === 'es' ? 'EN' : 'ES';
                 }
+            }
+        }
+
+        function openWhatsAppSession() {
+            fetch('/open_whatsapp', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.status === 'opened') {
+                        alert(t('whatsapp_open_session_ok'));
+                    } else {
+                        alert(t('whatsapp_open_session_fail'));
+                    }
+                })
+                .catch(() => {
+                    alert(t('whatsapp_open_session_fail'));
+                });
+        }
+
+        function renumberRows() {
+            const rows = Array.from(document.querySelectorAll('#tableBody tr')).filter(row => row.id !== 'addRow');
+            rows.forEach((row, index) => {
+                const cell = row.querySelector('td[data-col="index"]');
+                if (cell) cell.textContent = String(index + 1);
+                row.dataset.rowIndex = String(index);
+            });
+        }
+
+        function setRowStatus(row, status, message) {
+            if (!row) return;
+            const badge = row.querySelector('.status-badge');
+            if (!badge) return;
+            badge.className = `status-badge status-${status}`;
+            badge.textContent = status.toUpperCase();
+            if (message) {
+                badge.title = message;
             }
         }
 
@@ -685,9 +743,11 @@
             const addRow = document.getElementById('addRow');
             const row = tbody.insertBefore(document.createElement('tr'), addRow);
             row.innerHTML = `
+                <td data-col="index">0</td>
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_country" placeholder="${t('placeholder_country')}"></textarea></div></td>
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_phone" placeholder="${t('placeholder_phone')}"></textarea></div></td>
                 <td><div class="cell-input"><textarea rows="1" data-i18n-placeholder="placeholder_name" placeholder="${t('placeholder_name')}"></textarea></div></td>
+                <td><span class="status-badge status-pending">PENDING</span></td>
                 <td>
                     <div class="action-buttons">
                         <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">
@@ -704,6 +764,7 @@
             `;
             row.querySelectorAll('textarea').forEach(autoResizeTextarea);
             applyTranslations();
+            renumberRows();
         }
         
         function addRowAfter(button) {
@@ -712,9 +773,11 @@
             const addRow = document.getElementById('addRow');
             const newRow = tbody.insertBefore(document.createElement('tr'), addRow);
             newRow.innerHTML = `
+                <td data-col="index">0</td>
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_country" placeholder="${t('placeholder_country')}"></textarea></div></td>
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_phone" placeholder="${t('placeholder_phone')}"></textarea></div></td>
                 <td><div class="cell-input"><textarea rows="1" data-i18n-placeholder="placeholder_name" placeholder="${t('placeholder_name')}"></textarea></div></td>
+                <td><span class="status-badge status-pending">PENDING</span></td>
                 <td>
                     <div class="action-buttons">
                         <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">
@@ -731,6 +794,7 @@
             `;
             newRow.querySelectorAll('textarea').forEach(autoResizeTextarea);
             applyTranslations();
+            renumberRows();
         }
         
         function copyRow(button) {
@@ -740,9 +804,11 @@
             const addRow = document.getElementById('addRow');
             const newRow = tbody.insertBefore(document.createElement('tr'), addRow);
             newRow.innerHTML = `
-                <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true">${getCellValue(cells[0])}</textarea></div></td>
+                <td data-col="index">0</td>
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true">${getCellValue(cells[1])}</textarea></div></td>
-                <td><div class="cell-input"><textarea rows="1">${getCellValue(cells[2])}</textarea></div></td>
+                <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true">${getCellValue(cells[2])}</textarea></div></td>
+                <td><div class="cell-input"><textarea rows="1">${getCellValue(cells[3])}</textarea></div></td>
+                <td><span class="status-badge status-pending">PENDING</span></td>
                 <td>
                     <div class="action-buttons">
                         <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">
@@ -759,26 +825,29 @@
             `;
             newRow.querySelectorAll('textarea').forEach(autoResizeTextarea);
             applyTranslations();
+            renumberRows();
         }
         
         function sendFromRow(button) {
             const row = button.closest('tr');
             const cells = row.cells;
-            const countryCode = getCellValue(cells[0]);
-            const phone = getCellValue(cells[1]);
-            const name = getCellValue(cells[2]);
+            const countryCode = getCellValue(cells[1]);
+            const phone = getCellValue(cells[2]);
+            const name = getCellValue(cells[3]);
             const message = document.getElementById('messageEditor').value || '';
             const fileLinks = getFileLinks();
             if (!message.trim()) {
                 showStatus(t('message_required'), true);
                 return;
             }
-            sendMessage(phone, message, fileLinks, countryCode, name);
+            setRowStatus(row, 'pending');
+            sendMessage(phone, message, fileLinks, countryCode, name, row);
         }
         
         function deleteRow(button) {
             const row = button.closest('tr');
             row.remove();
+            renumberRows();
         }
         
         function importFile() {
@@ -815,9 +884,11 @@
                 }
                 const row = tbody.insertBefore(document.createElement('tr'), addRow);
                 row.innerHTML = `
+                    <td data-col="index">0</td>
                     <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_country" placeholder="${t('placeholder_country')}">${item.country_code || ''}</textarea></div></td>
                     <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_phone" placeholder="${t('placeholder_phone')}">${item.phone || ''}</textarea></div></td>
                     <td><div class="cell-input"><textarea rows="1" data-i18n-placeholder="placeholder_name" placeholder="${t('placeholder_name')}">${item.name || ''}</textarea></div></td>
+                    <td><span class="status-badge status-pending">PENDING</span></td>
                     <td>
                         <div class="action-buttons">
                             <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">
@@ -844,6 +915,7 @@
                 addFileRow(firstFileLink || '');
             }
             applyTranslations();
+            renumberRows();
         }
         
         function sendAll() {
@@ -854,15 +926,17 @@
             const rows = Array.from(document.querySelectorAll('#tableBody tr')).filter(row => row.id !== 'addRow');
             const contacts = rows.map(row => {
                 const cells = row.cells;
-                const countryCode = getCellValue(cells[0]);
-                const phone = getCellValue(cells[1]);
-                const name = getCellValue(cells[2]);
+                const countryCode = getCellValue(cells[1]);
+                const phone = getCellValue(cells[2]);
+                const name = getCellValue(cells[3]);
                 return {
+                    row_index: row.dataset.rowIndex ? parseInt(row.dataset.rowIndex, 10) : null,
                     country_code: countryCode,
                     phone: phone,
                     name: name
                 };
             }).filter(contact => contact.phone);
+            rows.forEach(row => setRowStatus(row, 'pending'));
 
             const message = document.getElementById('messageEditor').value || '';
             const fileLinks = getFileLinks();
@@ -895,6 +969,15 @@
                     showStatus(data.error, true);
                 } else {
                     showStatus(data.status || 'OK', false);
+                    if (Array.isArray(data.results)) {
+                        data.results.forEach(result => {
+                            if (result.row_index === null || result.row_index === undefined) return;
+                            const row = rows.find(r => parseInt(r.dataset.rowIndex, 10) === result.row_index);
+                            if (row) {
+                                setRowStatus(row, result.status || 'pending', result.error);
+                            }
+                        });
+                    }
                 }
             })
             .catch(() => {
@@ -951,7 +1034,7 @@
             }
         }
         
-        function sendMessage(phone, message, fileLinks, countryCode, name) {
+        function sendMessage(phone, message, fileLinks, countryCode, name, row) {
             if (isSending) {
                 showStatus(t('sending_in_progress'), true);
                 return;
@@ -961,7 +1044,7 @@
             fetch('/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, message, fileLinks, country_code: countryCode, name })
+                body: JSON.stringify({ phone, message, fileLinks, country_code: countryCode, name, row_index: row ? parseInt(row.dataset.rowIndex, 10) : null })
             })
             .then(async response => {
                 const text = await response.text();
@@ -975,8 +1058,10 @@
             .then(data => {
                 if (data.error) {
                     showStatus(data.error, true);
+                    if (row) setRowStatus(row, 'error', data.error);
                 } else {
                     showStatus(data.status || 'OK', false);
+                    if (row) setRowStatus(row, 'sent');
                 }
             })
             .catch(() => {
@@ -997,10 +1082,10 @@
             let csv = `${headers.join(',')}\n`;
             rows.forEach(row => {
                 const cells = row.cells;
-                if (!cells || cells.length < 3) return;
-                const countryCode = getCellValue(cells[0]);
-                const phone = getCellValue(cells[1]);
-                const name = getCellValue(cells[2]);
+                if (!cells || cells.length < 4) return;
+                const countryCode = getCellValue(cells[1]);
+                const phone = getCellValue(cells[2]);
+                const name = getCellValue(cells[3]);
                 csv += `"${countryCode}","${phone}","${name}"\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv' });

@@ -299,6 +299,39 @@ def normalize_file_links(data):
     return []
 
 
+def _extract_drive_id(url):
+    match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
+    if match:
+        return match.group(1)
+    match = re.search(r"[?&]id=([a-zA-Z0-9_-]+)", url)
+    if match:
+        return match.group(1)
+    return None
+
+
+def download_file_from_link(url, timeout=30):
+    if not url:
+        return None
+    drive_id = _extract_drive_id(url)
+    if drive_id:
+        try:
+            import gdown
+            tmp_file = tempfile.NamedTemporaryFile(delete=False)
+            tmp_file.close()
+            gdown.download(id=drive_id, output=tmp_file.name, quiet=True)
+            if os.path.isfile(tmp_file.name) and os.path.getsize(tmp_file.name) > 0:
+                return tmp_file.name
+        except Exception:
+            return None
+
+    response = requests.get(url, timeout=timeout)
+    if response.status_code != 200 or not response.content:
+        return None
+    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+        tmp_file.write(response.content)
+        return tmp_file.name
+
+
 @app.route('/open_whatsapp', methods=['POST'])
 def open_whatsapp():
     driver = get_driver()
@@ -355,8 +388,9 @@ def send():
     phone = data.get('phone')
     message = data.get('message')
     file_links = normalize_file_links(data)
+    row_index = data.get('row_index')
     if not phone or not message:
-        return jsonify({'error': 'Phone and message required'})
+        return jsonify({'error': 'Phone and message required', 'row_index': row_index})
     
     # Si el teléfono no comienza con +, asumimos que es local y necesitamos country_code
     if not phone.startswith('+'):
@@ -366,37 +400,35 @@ def send():
     try:
         driver = get_driver()
     except Exception as e:
-        return jsonify({'error': str(e)})
+        return jsonify({'error': str(e), 'row_index': row_index})
     with driver_lock:
         if not ensure_logged_in(driver):
-            return jsonify({'error': 'WhatsApp no está autenticado. Abre WhatsApp Web en el navegador del servidor y escanea el QR.'})
+            return jsonify({'error': 'WhatsApp no está autenticado. Abre WhatsApp Web en el navegador del servidor y escanea el QR.', 'row_index': row_index})
         try:
             encoded_message = quote(message)
             driver.get(f"https://web.whatsapp.com/send?phone={phone}&text={encoded_message}&app_absent=0")
             chat_input = wait_for_chat_input(driver, 30)
 
             for file_link in file_links:
-                response = requests.get(file_link, timeout=15)
-                if response.status_code == 200:
-                    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-                        tmp_file.write(response.content)
-                        file_path = tmp_file.name
+                file_path = download_file_from_link(file_link)
+                if not file_path:
+                    continue
 
-                    attach_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//span[@data-icon='clip'] | //span[@data-testid='clip']")))
-                    attach_button.click()
+                attach_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//span[@data-icon='clip'] | //span[@data-testid='clip']")))
+                attach_button.click()
 
-                    file_input = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//input[@type='file']")))
-                    file_input.send_keys(file_path)
+                file_input = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//input[@type='file']")))
+                file_input.send_keys(file_path)
 
-                    time.sleep(5)
-                    os.unlink(file_path)
+                time.sleep(5)
+                os.unlink(file_path)
 
             if not click_send_button(driver):
                 chat_input.send_keys(Keys.ENTER)
             time.sleep(2)
-            return jsonify({'status': 'Message sent'})
+            return jsonify({'status': 'Message sent', 'row_index': row_index})
         except Exception as e:
-            return jsonify({'error': str(e)})
+            return jsonify({'error': str(e), 'row_index': row_index})
 
 @app.route('/send_all', methods=['POST'])
 def send_all():
@@ -417,11 +449,15 @@ def send_all():
         if not global_message and not any(msg.get('message') for msg in messages):
             return jsonify({'error': 'Message required'})
 
+        results = []
+
         for msg in messages:
             phone = msg.get('phone')
             message = global_message or msg.get('message')
             file_links = global_file_links or normalize_file_links(msg)
+            row_index = msg.get('row_index')
             if not phone or not message:
+                results.append({'row_index': row_index, 'status': 'skipped'})
                 continue
             if not phone.startswith('+'):
                 country_code = msg.get('country_code', '57')
@@ -433,31 +469,31 @@ def send_all():
                 chat_input = wait_for_chat_input(driver, 30)
 
                 for file_link in file_links:
-                    response = requests.get(file_link, timeout=15)
-                    if response.status_code == 200:
-                        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-                            tmp_file.write(response.content)
-                            file_path = tmp_file.name
+                    file_path = download_file_from_link(file_link)
+                    if not file_path:
+                        continue
 
-                        attach_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//span[@data-icon='clip'] | //span[@data-testid='clip']")))
-                        attach_button.click()
+                    attach_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//span[@data-icon='clip'] | //span[@data-testid='clip']")))
+                    attach_button.click()
 
-                        file_input = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//input[@type='file']")))
-                        file_input.send_keys(file_path)
+                    file_input = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//input[@type='file']")))
+                    file_input.send_keys(file_path)
 
-                        time.sleep(5)
-                        os.unlink(file_path)
+                    time.sleep(5)
+                    os.unlink(file_path)
 
                 if not click_send_button(driver):
                     chat_input.send_keys(Keys.ENTER)
                 time.sleep(2)
+                results.append({'row_index': row_index, 'status': 'sent'})
             except Exception as e:
                 print(f"Error sending to {phone}: {e}")
+                results.append({'row_index': row_index, 'status': 'error', 'error': str(e)})
 
             interval = random.uniform(min_interval, max_interval)
             time.sleep(interval)
 
-    return jsonify({'status': f'Sent {len(messages)} messages with random intervals'})
+    return jsonify({'status': f'Sent {len(messages)} messages with random intervals', 'results': results})
 
 @app.route('/health')
 def health():

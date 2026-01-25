@@ -517,10 +517,15 @@
             es: {
                 title: 'DISPATCHER.',
                 whatsapp_title: 'WhatsApp Web',
-                whatsapp_notice: 'No puede embeberse aquí por políticas de seguridad. Usa el botón para abrir WhatsApp Web en Chrome for Testing y escanear el QR.',
-                whatsapp_open: 'Abrir WhatsApp Web en Chrome for Testing',
+                whatsapp_notice: 'Abre WhatsApp Web solo con el botón de abajo.',
+                whatsapp_open: 'Abrir',
                 whatsapp_open_session_ok: 'Se abrió la ventana de WhatsApp. Escanea el QR allí.',
                 whatsapp_open_session_fail: 'No se pudo abrir la sesión de WhatsApp.',
+                status: 'Estado',
+                status_pending: 'Pendiente',
+                status_sent: 'Enviado',
+                status_error: 'Error',
+                status_skipped: 'Omitido',
                 contacts_table: 'Tabla de Contactos',
                 import: 'Importar CSV/XLSX',
                 export: 'Exportar CSV',
@@ -559,10 +564,15 @@
             en: {
                 title: 'DISPATCHER.',
                 whatsapp_title: 'WhatsApp Web',
-                whatsapp_notice: "Can't be embedded here due to security policies. Use the button to open WhatsApp Web in Chrome for Testing and scan the QR.",
-                whatsapp_open: 'Open WhatsApp Web in Chrome for Testing',
+                whatsapp_notice: 'Open WhatsApp Web only with the button below.',
+                whatsapp_open: 'Open',
                 whatsapp_open_session_ok: 'WhatsApp window opened. Scan the QR there.',
                 whatsapp_open_session_fail: 'Could not open WhatsApp session.',
+                status: 'Status',
+                status_pending: 'Pending',
+                status_sent: 'Sent',
+                status_error: 'Error',
+                status_skipped: 'Skipped',
                 contacts_table: 'Contacts table',
                 import: 'Import CSV/XLSX',
                 export: 'Export CSV',
@@ -630,6 +640,11 @@
                     label.textContent = currentLang === 'es' ? 'EN' : 'ES';
                 }
             }
+            document.querySelectorAll('.status-badge').forEach(badge => {
+                const status = badge.dataset.status || 'pending';
+                const label = t(`status_${status}`);
+                badge.textContent = label || status.toUpperCase();
+            });
         }
 
         function openWhatsAppSession() {
@@ -661,7 +676,9 @@
             const badge = row.querySelector('.status-badge');
             if (!badge) return;
             badge.className = `status-badge status-${status}`;
-            badge.textContent = status.toUpperCase();
+            badge.dataset.status = status;
+            const label = t(`status_${status}`);
+            badge.textContent = label || status.toUpperCase();
             if (message) {
                 badge.title = message;
             }
@@ -747,7 +764,7 @@
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_country" placeholder="${t('placeholder_country')}"></textarea></div></td>
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_phone" placeholder="${t('placeholder_phone')}"></textarea></div></td>
                 <td><div class="cell-input"><textarea rows="1" data-i18n-placeholder="placeholder_name" placeholder="${t('placeholder_name')}"></textarea></div></td>
-                <td><span class="status-badge status-pending">PENDING</span></td>
+                <td><span class="status-badge status-pending" data-status="pending">${t('status_pending') || 'PENDING'}</span></td>
                 <td>
                     <div class="action-buttons">
                         <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">
@@ -777,7 +794,7 @@
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_country" placeholder="${t('placeholder_country')}"></textarea></div></td>
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_phone" placeholder="${t('placeholder_phone')}"></textarea></div></td>
                 <td><div class="cell-input"><textarea rows="1" data-i18n-placeholder="placeholder_name" placeholder="${t('placeholder_name')}"></textarea></div></td>
-                <td><span class="status-badge status-pending">PENDING</span></td>
+                <td><span class="status-badge status-pending" data-status="pending">${t('status_pending') || 'PENDING'}</span></td>
                 <td>
                     <div class="action-buttons">
                         <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">
@@ -808,7 +825,7 @@
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true">${getCellValue(cells[1])}</textarea></div></td>
                 <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true">${getCellValue(cells[2])}</textarea></div></td>
                 <td><div class="cell-input"><textarea rows="1">${getCellValue(cells[3])}</textarea></div></td>
-                <td><span class="status-badge status-pending">PENDING</span></td>
+                <td><span class="status-badge status-pending" data-status="pending">${t('status_pending') || 'PENDING'}</span></td>
                 <td>
                     <div class="action-buttons">
                         <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">
@@ -888,7 +905,7 @@
                     <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_country" placeholder="${t('placeholder_country')}">${item.country_code || ''}</textarea></div></td>
                     <td><div class="cell-input"><textarea rows="1" inputmode="numeric" pattern="\d*" data-numeric="true" data-i18n-placeholder="placeholder_phone" placeholder="${t('placeholder_phone')}">${item.phone || ''}</textarea></div></td>
                     <td><div class="cell-input"><textarea rows="1" data-i18n-placeholder="placeholder_name" placeholder="${t('placeholder_name')}">${item.name || ''}</textarea></div></td>
-                    <td><span class="status-badge status-pending">PENDING</span></td>
+                    <td><span class="status-badge status-pending" data-status="pending">${t('status_pending') || 'PENDING'}</span></td>
                     <td>
                         <div class="action-buttons">
                             <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">

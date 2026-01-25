@@ -276,6 +276,7 @@ def wait_for_chat_input(driver, timeout=30):
 
 def click_send_button(driver):
     xpaths = [
+        "//button[@data-testid='send']",
         "//span[@data-icon='send']",
         "//button[@data-testid='compose-btn-send']",
         "//span[@data-testid='send']"
@@ -283,7 +284,7 @@ def click_send_button(driver):
     for _ in range(2):
         for xpath in xpaths:
             try:
-                button = WebDriverWait(driver, 8).until(EC.element_to_be_clickable((By.XPATH, xpath)))
+                button = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, xpath)))
                 button.click()
                 return True
             except TimeoutException:
@@ -420,10 +421,10 @@ def send():
                 if not file_path:
                     continue
 
-                attach_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//span[@data-icon='clip'] | //span[@data-testid='clip']")))
+                attach_button = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//span[@data-icon='clip'] | //span[@data-testid='clip']")))
                 attach_button.click()
 
-                file_input = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//input[@type='file']")))
+                file_input = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH, "//input[@type='file' and @data-testid='attach-file-input'] | //input[@type='file']")))
                 file_input.send_keys(file_path)
 
                 time.sleep(5)
@@ -434,6 +435,8 @@ def send():
                     chat_input.send_keys(Keys.ENTER)
                 except Exception:
                     pass
+            if not click_send_button(driver):
+                raise Exception("No se pudo enviar el mensaje")
             time.sleep(2)
             return jsonify({'status': 'Message sent', 'row_index': row_index})
         except Exception as e:
@@ -486,10 +489,10 @@ def send_all():
                     if not file_path:
                         continue
 
-                    attach_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//span[@data-icon='clip'] | //span[@data-testid='clip']")))
+                    attach_button = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//span[@data-icon='clip'] | //span[@data-testid='clip']")))
                     attach_button.click()
 
-                    file_input = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//input[@type='file']")))
+                    file_input = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH, "//input[@type='file' and @data-testid='attach-file-input'] | //input[@type='file']")))
                     file_input.send_keys(file_path)
 
                     time.sleep(5)
@@ -500,6 +503,8 @@ def send_all():
                         chat_input.send_keys(Keys.ENTER)
                     except Exception:
                         pass
+                if not click_send_button(driver):
+                    raise Exception("No se pudo enviar el mensaje")
                 time.sleep(2)
                 results.append({'row_index': row_index, 'status': 'sent'})
             except Exception as e:

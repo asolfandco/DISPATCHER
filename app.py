@@ -311,22 +311,35 @@ def attach_files(driver, file_paths):
 	attach_xpaths = [
 		"//span[@data-icon='clip']",
 		"//span[@data-testid='clip']",
-		"//div[@role='button' and (@aria-label='Attach' or @aria-label='Adjuntar')]"
+		"//div[@role='button' and (@aria-label='Attach' or @aria-label='Adjuntar')]",
+		"//button[@title='Attach' or @title='Adjuntar']",
+		"//div[@title='Attach' or @title='Adjuntar']"
 	]
-	attach_button = wait_for_element(driver, attach_xpaths, timeout=15, clickable=True)
-	if not attach_button:
-		return False
-	attach_button.click()
 	file_input_xpaths = [
 		"//input[@type='file' and @data-testid='attach-file-input']",
 		"//input[@type='file' and @accept]",
 		"//input[@type='file']"
 	]
-	file_input = wait_for_element(driver, file_input_xpaths, timeout=15, clickable=False)
-	if not file_input:
-		return False
-	file_input.send_keys("\n".join(file_paths))
-	return True
+	for _ in range(3):
+		attach_button = wait_for_element(driver, attach_xpaths, timeout=12, clickable=True)
+		if not attach_button:
+			time.sleep(1)
+			continue
+		try:
+			attach_button.click()
+		except Exception:
+			time.sleep(0.5)
+		file_input = wait_for_element(driver, file_input_xpaths, timeout=12, clickable=False)
+		if not file_input:
+			time.sleep(1)
+			continue
+		try:
+			file_input.send_keys("\n".join(file_paths))
+		except Exception:
+			time.sleep(1)
+			continue
+		return True
+	return False
 
 def set_media_caption(driver, message):
 	if not message:
@@ -503,7 +516,11 @@ def send():
 	download_paths = []
 	row_index = data.get('row_index')
 	if not phone or not message:
-		return jsonify({'error': 'Phone and message required', 'row_index': row_index})
+		return jsonify({
+			'error': 'Phone and message required',
+			'error_code': 'error_phone_message_required',
+			'row_index': row_index
+		})
     
 	# Si el teléfono no comienza con +, asumimos que es local y necesitamos country_code
 	if not phone.startswith('+'):
@@ -516,7 +533,11 @@ def send():
 		return jsonify({'error': str(e), 'row_index': row_index})
 	with driver_lock:
 		if not ensure_logged_in(driver):
-			return jsonify({'error': 'WhatsApp no está autenticado. Abre WhatsApp Web en el navegador del servidor y escanea el QR.', 'row_index': row_index})
+			return jsonify({
+				'error': 'WhatsApp no está autenticado. Abre WhatsApp Web en el navegador del servidor y escanea el QR.',
+				'error_code': 'error_whatsapp_not_authenticated',
+				'row_index': row_index
+			})
 		try:
 			encoded_message = quote(message)
 			driver.get(f"https://web.whatsapp.com/send?phone={phone}&text={encoded_message}&app_absent=0")
@@ -537,22 +558,26 @@ def send():
 
 			if file_paths:
 				if not attach_files(driver, file_paths):
-					raise Exception("No se pudieron adjuntar los archivos")
+					raise Exception("error_attach_files")
 				caption_set = set_media_caption(driver, message)
-				if not click_send_button(driver):
-					raise Exception("No se pudo enviar los adjuntos")
+				if not click_send_button(driver, timeout=30):
+					raise Exception("error_send_attachments")
 				time.sleep(2)
 				if not caption_set:
 					chat_input = wait_for_chat_input(driver, 20)
 					if not ensure_message_sent(driver, chat_input, message):
-						raise Exception("No se pudo enviar el mensaje")
+						raise Exception("error_send_message")
 			else:
 				if not ensure_message_sent(driver, chat_input, message):
-					raise Exception("No se pudo enviar el mensaje")
+					raise Exception("error_send_message")
 			time.sleep(2)
 			return jsonify({'status': 'Message sent', 'row_index': row_index})
 		except Exception as e:
-			return jsonify({'error': str(e), 'row_index': row_index})
+			error_key = str(e)
+			error_payload = {'error': error_key, 'row_index': row_index}
+			if error_key.startswith('error_'):
+				error_payload['error_code'] = error_key
+			return jsonify(error_payload)
 		finally:
 			for path in upload_paths:
 				try:
@@ -580,10 +605,13 @@ def send_all():
 		return jsonify({'error': str(e)})
 	with driver_lock:
 		if not ensure_logged_in(driver):
-			return jsonify({'error': 'WhatsApp no está autenticado. Abre WhatsApp Web en el navegador del servidor y escanea el QR.'})
+			return jsonify({
+				'error': 'WhatsApp no está autenticado. Abre WhatsApp Web en el navegador del servidor y escanea el QR.',
+				'error_code': 'error_whatsapp_not_authenticated'
+			})
 
 		if not global_message and not any(msg.get('message') for msg in messages):
-			return jsonify({'error': 'Message required'})
+			return jsonify({'error': 'Message required', 'error_code': 'error_message_required'})
 
 		results = []
 
@@ -627,23 +655,27 @@ def send_all():
 
 				if file_paths:
 					if not attach_files(driver, file_paths):
-						raise Exception("No se pudieron adjuntar los archivos")
+						raise Exception("error_attach_files")
 					caption_set = set_media_caption(driver, message)
-					if not click_send_button(driver):
-						raise Exception("No se pudo enviar los adjuntos")
+					if not click_send_button(driver, timeout=30):
+						raise Exception("error_send_attachments")
 					time.sleep(2)
 					if not caption_set:
 						chat_input = wait_for_chat_input(driver, 20)
 						if not ensure_message_sent(driver, chat_input, message):
-							raise Exception("No se pudo enviar el mensaje")
+							raise Exception("error_send_message")
 				else:
 					if not ensure_message_sent(driver, chat_input, message):
-						raise Exception("No se pudo enviar el mensaje")
+						raise Exception("error_send_message")
 				time.sleep(2)
 				results.append({'row_index': row_index, 'status': 'sent'})
 			except Exception as e:
-				print(f"Error sending to {phone}: {e}")
-				results.append({'row_index': row_index, 'status': 'error', 'error': str(e)})
+				error_key = str(e)
+				print(f"Error sending to {phone}: {error_key}")
+				result = {'row_index': row_index, 'status': 'error', 'error': error_key}
+				if error_key.startswith('error_'):
+					result['error_code'] = error_key
+				results.append(result)
 
 			interval = random.uniform(min_interval, max_interval)
 			time.sleep(interval)

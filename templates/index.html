@@ -193,6 +193,22 @@
         .status-sent { background: rgba(124,252,152,0.2); color: #7CFC98; }
         .status-error { background: rgba(255,77,77,0.2); color: #FF4D4D; }
         .status-skipped { background: rgba(255,255,255,0.08); color: #A1A1AA; }
+        .status-loading::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-right: 8px;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            vertical-align: -2px;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
         .message-editor textarea {
             width: 100%;
             box-sizing: border-box;
@@ -581,6 +597,7 @@
                 whatsapp_title: 'WhatsApp Web',
                 whatsapp_notice: 'Abre WhatsApp Web solo con el botón de abajo.',
                 whatsapp_open: 'Abrir',
+                whatsapp_opening: 'Abriendo WhatsApp Web...',
                 whatsapp_open_session_ok: 'Se abrió la ventana de WhatsApp. Escanea el QR allí.',
                 whatsapp_open_session_fail: 'No se pudo abrir la sesión de WhatsApp.',
                 status: 'Estado',
@@ -623,6 +640,13 @@
                 copy: 'Copiar',
                 delete: 'Eliminar',
                 message_required: 'El mensaje es obligatorio.',
+                error_message_required: 'El mensaje es obligatorio.',
+                error_phone_message_required: 'Teléfono y mensaje son obligatorios.',
+                error_whatsapp_not_authenticated: 'WhatsApp no está autenticado. Abre WhatsApp Web y escanea el QR.',
+                error_attach_files: 'No se pudieron adjuntar los archivos.',
+                error_send_attachments: 'No se pudo enviar los adjuntos.',
+                error_send_message: 'No se pudo enviar el mensaje.',
+                error_connect: 'No se pudo conectar con el servidor.',
                 add_file: 'Agregar archivos',
                 add_folder: 'Agregar carpeta',
                 file_uploading: 'Cargando',
@@ -638,6 +662,7 @@
                 whatsapp_title: 'WhatsApp Web',
                 whatsapp_notice: 'Open WhatsApp Web using the button below.',
                 whatsapp_open: 'Open',
+                whatsapp_opening: 'Opening WhatsApp Web...',
                 whatsapp_open_session_ok: 'WhatsApp window opened. Scan the QR code there.',
                 whatsapp_open_session_fail: 'Couldn\'t open WhatsApp session.',
                 status: 'Status',
@@ -680,6 +705,13 @@
                 copy: 'Copy',
                 delete: 'Delete',
                 message_required: 'Message is required.',
+                error_message_required: 'Message is required.',
+                error_phone_message_required: 'Phone and message are required.',
+                error_whatsapp_not_authenticated: 'WhatsApp is not authenticated. Open WhatsApp Web and scan the QR.',
+                error_attach_files: 'Files could not be attached.',
+                error_send_attachments: 'Could not send attachments.',
+                error_send_message: 'Could not send the message.',
+                error_connect: 'Could not connect to the server.',
                 add_file: 'Add files',
                 add_folder: 'Add folder',
                 file_uploading: 'Uploading',
@@ -761,17 +793,18 @@
         }
 
         function openWhatsAppSession() {
+            showStatus(t('whatsapp_opening'), false, true);
             fetch('/open_whatsapp', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
                     if (data && data.status === 'opened') {
-                        alert(t('whatsapp_open_session_ok'));
+                        showStatus(t('whatsapp_open_session_ok'), false);
                     } else {
-                        alert(t('whatsapp_open_session_fail'));
+                        showStatus(t('whatsapp_open_session_fail'), true);
                     }
                 })
                 .catch(() => {
-                    alert(t('whatsapp_open_session_fail'));
+                    showStatus(t('whatsapp_open_session_fail'), true);
                 });
         }
 
@@ -917,12 +950,23 @@
                 .map(entry => entry.file);
         }
 
-        function showStatus(message, isError = false) {
+        function showStatus(message, isError = false, isLoading = false) {
             const banner = document.getElementById('statusBanner');
             if (!banner) return;
             banner.textContent = message || '';
             banner.style.display = message ? 'block' : 'none';
             banner.style.color = isError ? '#FF4D4D' : '#7CFC98';
+            banner.classList.toggle('status-loading', isLoading);
+        }
+
+        function localizeError(data) {
+            if (data && data.error_code) {
+                return t(data.error_code);
+            }
+            if (data && data.error && translations[currentLang][data.error]) {
+                return t(data.error);
+            }
+            return data?.error || t('error_connect');
         }
         
         function getCellValue(cell) {
@@ -1098,7 +1142,7 @@
         
         function sendAll() {
             if (isSending) {
-                showStatus(t('sending_in_progress'), true);
+                showStatus(t('sending_in_progress'), false, true);
                 return;
             }
             const rows = Array.from(document.querySelectorAll('#tableBody tr')).filter(row => row.id !== 'addRow');
@@ -1127,7 +1171,7 @@
             const maxInterval = parseInt(document.getElementById('intervalMax').value);
             
             isSending = true;
-            showStatus(t('sending'), false);
+            showStatus(t('sending'), false, true);
             sendPayload('/send_all', { contacts, message, min_interval: minInterval, max_interval: maxInterval }, files)
             .then(async response => {
                 const text = await response.text();
@@ -1140,7 +1184,7 @@
             })
             .then(data => {
                 if (data.error) {
-                    showStatus(data.error, true);
+                    showStatus(localizeError(data), true);
                 } else {
                     showStatus(data.status || 'OK', false);
                     if (Array.isArray(data.results)) {
@@ -1148,14 +1192,15 @@
                             if (result.row_index === null || result.row_index === undefined) return;
                             const row = rows.find(r => parseInt(r.dataset.rowIndex, 10) === result.row_index);
                             if (row) {
-                                setRowStatus(row, result.status || 'pending', result.error);
+                                const tooltip = result.error_code ? t(result.error_code) : result.error;
+                                setRowStatus(row, result.status || 'pending', tooltip);
                             }
                         });
                     }
                 }
             })
             .catch(() => {
-                showStatus('No se pudo conectar con el servidor.', true);
+                showStatus(t('error_connect'), true);
             })
             .finally(() => {
                 isSending = false;
@@ -1197,11 +1242,11 @@
         
         function sendMessage(phone, message, files, countryCode, name, row) {
             if (isSending) {
-                showStatus(t('sending_in_progress'), true);
+                showStatus(t('sending_in_progress'), false, true);
                 return;
             }
             isSending = true;
-            showStatus(t('sending'), false);
+            showStatus(t('sending'), false, true);
             sendPayload('/send', { phone, message, country_code: countryCode, name, row_index: row ? parseInt(row.dataset.rowIndex, 10) : null }, files)
             .then(async response => {
                 const text = await response.text();
@@ -1214,15 +1259,16 @@
             })
             .then(data => {
                 if (data.error) {
-                    showStatus(data.error, true);
-                    if (row) setRowStatus(row, 'error', data.error);
+                    const message = localizeError(data);
+                    showStatus(message, true);
+                    if (row) setRowStatus(row, 'error', message);
                 } else {
                     showStatus(data.status || 'OK', false);
                     if (row) setRowStatus(row, 'sent');
                 }
             })
             .catch(() => {
-                showStatus('No se pudo conectar con el servidor.', true);
+                showStatus(t('error_connect'), true);
             })
             .finally(() => {
                 isSending = false;

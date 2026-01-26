@@ -500,7 +500,8 @@
             <div class="editor-toolbar">
                 <button onclick="insertFormat('*')" data-i18n="bold">Bold</button>
                 <button onclick="insertFormat('_')" data-i18n="italic">Italic</button>
-                <button onclick="insertLink()" data-i18n="link">Link</button>
+                <button onclick="insertFormat('~')" data-i18n="strike">Strike</button>
+                <button onclick="insertFormat('`')" data-i18n="mono">Mono</button>
             </div>
             <textarea id="messageEditor" rows="20" placeholder="Type your message here..." data-i18n-placeholder="placeholder_editor"></textarea>
             <div class="char-counter"><span data-i18n="char_count_label">Characters</span>: <span id="editorCharCount">0</span>/4096</div>
@@ -609,7 +610,8 @@
                 file_section: 'Archivo',
                 bold: 'Negrita',
                 italic: 'Cursiva',
-                link: 'Enlace',
+                strike: 'Tachado',
+                mono: 'Monoespaciado',
                 char_count_label: 'Caracteres',
                 placeholder_editor: 'Escribe tu mensaje aquí...',
                 placeholder_country: 'Ej: 57',
@@ -620,8 +622,6 @@
                 send: 'Enviar',
                 copy: 'Copiar',
                 delete: 'Eliminar',
-                link_prompt: 'Ingresa la URL:',
-                link_text: 'Texto',
                 message_required: 'El mensaje es obligatorio.',
                 add_file: 'Agregar archivos',
                 add_folder: 'Agregar carpeta',
@@ -667,7 +667,8 @@
                 file_section: 'Files',
                 bold: 'Bold',
                 italic: 'Italic',
-                link: 'Link',
+                strike: 'Strikethrough',
+                mono: 'Monospace',
                 char_count_label: 'Characters',
                 placeholder_editor: 'Type your message here...',
                 placeholder_country: 'e.g. 57',
@@ -678,8 +679,6 @@
                 send: 'Send',
                 copy: 'Copy',
                 delete: 'Delete',
-                link_prompt: 'Enter the URL:',
-                link_text: 'Text',
                 message_required: 'Message is required.',
                 add_file: 'Add files',
                 add_folder: 'Add folder',
@@ -1194,19 +1193,6 @@
             }
 
             document.getElementById('editorCharCount').textContent = textarea.value.length;
-        }
-        
-        function insertLink() {
-            const url = prompt(t('link_prompt'));
-            if (url) {
-                const textarea = document.getElementById('messageEditor');
-                const start = textarea.selectionStart;
-                const text = textarea.value;
-                const linkText = `[${t('link_text')}](${url})`;
-                textarea.value = text.substring(0, start) + linkText + text.substring(start);
-                textarea.focus();
-                document.getElementById('editorCharCount').textContent = textarea.value.length;
-            }
         }
         
         function sendMessage(phone, message, files, countryCode, name, row) {

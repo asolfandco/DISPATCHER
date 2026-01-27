@@ -7,7 +7,7 @@ DISPATCHER. es una herramienta de despacho de mensajes por WhatsApp Web diseñad
 - Editor global de mensaje con formato básico.
 - Tabla de contactos con campos: código de país, teléfono y nombre.
 - Importación de contactos desde CSV/XLSX.
-- Enlaces de archivos múltiples por envío.
+- Adjuntos locales (archivos o carpetas) por envío.
 - Envío individual o masivo con intervalos aleatorios.
 - Banner de estado para errores y confirmaciones.
 

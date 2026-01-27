@@ -74,6 +74,10 @@
             margin: 30px auto;
             text-align: center;
         }
+        .whatsapp-header.loading #whatsappOpenBtn {
+            display: none !important;
+            visibility: hidden !important;
+        }
         .table-controls {
             margin-bottom: 10px;
             display: flex;
@@ -472,18 +476,58 @@
         .lang-toggle:hover svg {
             color: #FF0000;
         }
+        .status-inline {
+            margin-top: 6px;
+            font-size: 0.85rem;
+            color: #A1A1AA;
+            min-height: 14px;
+            display: block;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .whatsapp-header #whatsappOpenBtn + #whatsappStatus {
+            margin-top: 0;
+        }
+        .status-inline.loading::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-right: 8px;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            vertical-align: -2px;
+        }
         .whatsapp-header h2 {
             margin-top: 0;
-            margin-bottom: 0.5rem;
+            margin-bottom: 12px;
         }
         .whatsapp-header p {
             margin-top: 0;
-            margin-bottom: 0.5rem;
+            margin-bottom: 12px;
             text-align: center;
         }
         .whatsapp-header button {
             margin-top: 0;
             margin-bottom: 0;
+        }
+        .is-hidden {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        #statusBanner {
+            display: none;
+            margin: 12px auto 0;
+            width: 100%;
+            text-align: center;
+            color: #FFFFFF;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
         }
     </style>
 </head>
@@ -507,7 +551,8 @@
         <div class="whatsapp-header">
             <h2 data-i18n="whatsapp_title">WhatsApp Web</h2>
             <p data-i18n="whatsapp_notice">Can't be embedded here due to security policies.</p>
-            <button onclick="openWhatsAppSession()" data-i18n="whatsapp_open">Open WhatsApp Web in a new tab</button>
+            <button id="whatsappOpenBtn" type="button" onclick="openWhatsAppSession()" data-i18n="whatsapp_open">Open WhatsApp Web in a new tab</button>
+            <div id="whatsappStatus" class="status-inline" aria-live="polite"></div>
         </div>
 
         
@@ -551,13 +596,13 @@
             </div>
             <div class="interval-group" style="display:flex;align-items:center;gap:6px;">
                 <label for="intervalMin" style="margin:0;" data-i18n="interval_label">Random interval (s):</label>
-                <input type="number" id="intervalMin" value="2" min="1" max="10" style="width:60px;">
+                <input type="number" id="intervalMin" value="1" min="1" max="10" style="width:60px;">
                 <span style="">-</span>
-                <input type="number" id="intervalMax" value="4" min="1" max="10" style="width:60px;">
+                <input type="number" id="intervalMax" value="2" min="1" max="10" style="width:60px;">
             </div>
             <button onclick="sendAll()" data-i18n="send_all">Send all</button>
         </div>
-        <div id="statusBanner" style="display:none;margin:8px auto 0;width:90%;text-align:center;color:#FFFFFF;font-size:0.85rem;"></div>
+        <div id="statusBanner"></div>
         <table id="dataTable">
             <thead>
                 <tr>
@@ -609,8 +654,8 @@
                 import: 'Importar CSV/XLSX',
                 export: 'Exportar CSV',
                 select_all: 'Seleccionar todo',
-                copy_all: 'Copiar todo',
-                delete_all: 'Eliminar todo',
+                copy_all: 'Copiar',
+                delete_all: 'Eliminar',
                 undo: 'Deshacer',
                 redo: 'Rehacer',
                 interval_label: 'Intervalo aleatorio (s):',
@@ -674,8 +719,8 @@
                 import: 'Import CSV/XLSX',
                 export: 'Export CSV',
                 select_all: 'Select all',
-                copy_all: 'Duplicate rows',
-                delete_all: 'Delete rows',
+                copy_all: 'Duplicate',
+                delete_all: 'Delete',
                 undo: 'Undo',
                 redo: 'Redo',
                 interval_label: 'Random interval (s):',
@@ -793,17 +838,62 @@
         }
 
         function openWhatsAppSession() {
+            const whatsappStatus = document.getElementById('whatsappStatus');
+            const whatsappOpenBtn = document.getElementById('whatsappOpenBtn');
+            const whatsappHeader = document.querySelector('.whatsapp-header');
+            if (whatsappStatus) {
+                whatsappStatus.textContent = t('whatsapp_opening');
+                whatsappStatus.classList.add('loading');
+            }
+            if (whatsappHeader) {
+                whatsappHeader.classList.add('loading');
+            }
+            if (whatsappOpenBtn) {
+                whatsappOpenBtn.disabled = true;
+            }
             showStatus(t('whatsapp_opening'), false, true);
             fetch('/open_whatsapp', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
                     if (data && data.status === 'opened') {
+                        if (whatsappStatus) {
+                            whatsappStatus.textContent = t('whatsapp_open_session_ok');
+                            whatsappStatus.classList.remove('loading');
+                        }
+                        if (whatsappHeader) {
+                            whatsappHeader.classList.remove('loading');
+                        }
+                        if (whatsappOpenBtn) {
+                            whatsappOpenBtn.classList.add('is-hidden');
+                            whatsappOpenBtn.disabled = true;
+                            whatsappOpenBtn.setAttribute('aria-hidden', 'true');
+                        }
                         showStatus(t('whatsapp_open_session_ok'), false);
                     } else {
+                        if (whatsappStatus) {
+                            whatsappStatus.textContent = t('whatsapp_open_session_fail');
+                            whatsappStatus.classList.remove('loading');
+                        }
+                        if (whatsappHeader) {
+                            whatsappHeader.classList.remove('loading');
+                        }
+                        if (whatsappOpenBtn) {
+                            whatsappOpenBtn.disabled = false;
+                        }
                         showStatus(t('whatsapp_open_session_fail'), true);
                     }
                 })
                 .catch(() => {
+                    if (whatsappStatus) {
+                        whatsappStatus.textContent = t('whatsapp_open_session_fail');
+                        whatsappStatus.classList.remove('loading');
+                    }
+                    if (whatsappHeader) {
+                        whatsappHeader.classList.remove('loading');
+                    }
+                    if (whatsappOpenBtn) {
+                        whatsappOpenBtn.disabled = false;
+                    }
                     showStatus(t('whatsapp_open_session_fail'), true);
                 });
         }

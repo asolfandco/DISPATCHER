@@ -316,6 +316,8 @@ def attach_files(driver, file_paths):
 		"//div[@title='Attach' or @title='Adjuntar']"
 	]
 	file_input_xpaths = [
+		"//input[@type='file' and @data-testid='attach-doc']",
+		"//input[@type='file' and @data-testid='attach-document']",
 		"//input[@type='file' and @data-testid='attach-file-input']",
 		"//input[@type='file' and @accept]",
 		"//input[@type='file']"
@@ -324,6 +326,11 @@ def attach_files(driver, file_paths):
 		"//div[@data-testid='media-preview']",
 		"//div[contains(@class,'media-preview')]",
 		"//div[@data-testid='media-preview-section']"
+	]
+	send_xpaths = [
+		"//button[@data-testid='send']",
+		"//span[@data-icon='send']",
+		"//span[@data-testid='send']"
 	]
 	for _ in range(3):
 		attach_button = wait_for_element(driver, attach_xpaths, timeout=12, clickable=True)
@@ -343,10 +350,9 @@ def attach_files(driver, file_paths):
 		except Exception:
 			time.sleep(1)
 			continue
-		if wait_for_element(driver, preview_xpaths, timeout=20, clickable=False):
+		if wait_for_element(driver, preview_xpaths, timeout=20, clickable=False) or wait_for_element(driver, send_xpaths, timeout=15, clickable=True):
 			return True
 		time.sleep(1)
-		return True
 	return False
 
 def set_media_caption(driver, message):
@@ -570,7 +576,7 @@ def send():
 				caption_set = set_media_caption(driver, message)
 				if not click_send_button(driver, timeout=30):
 					raise Exception("error_send_attachments")
-				time.sleep(0.5)
+				time.sleep(0.2)
 				if not caption_set:
 					chat_input = wait_for_chat_input(driver, 20)
 					if not ensure_message_sent(driver, chat_input, message):
@@ -578,7 +584,7 @@ def send():
 			else:
 				if not ensure_message_sent(driver, chat_input, message):
 					raise Exception("error_send_message")
-			time.sleep(0.5)
+			time.sleep(0.2)
 			return jsonify({'status': 'Message sent', 'row_index': row_index})
 		except Exception as e:
 			error_key = str(e)
@@ -677,7 +683,7 @@ def send_all():
 					caption_set = set_media_caption(driver, message)
 					if not click_send_button(driver, timeout=30):
 						raise Exception("error_send_attachments")
-					time.sleep(0.5)
+					time.sleep(0.2)
 					if not caption_set:
 						chat_input = wait_for_chat_input(driver, 20)
 						if not ensure_message_sent(driver, chat_input, message):
@@ -685,7 +691,7 @@ def send_all():
 				else:
 					if not ensure_message_sent(driver, chat_input, message):
 						raise Exception("error_send_message")
-				time.sleep(0.5)
+				time.sleep(0.2)
 				results.append({'row_index': row_index, 'status': 'sent'})
 			except Exception as e:
 				error_key = str(e)

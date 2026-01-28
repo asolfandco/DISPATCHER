@@ -225,88 +225,6 @@
             margin: 30px auto;
             text-align: left;
         }
-        .file-section textarea {
-            width: 100%;
-            box-sizing: border-box;
-        }
-        .file-section {
-            background-color: #111111;
-            padding: 30px;
-            border-radius: 5px;
-            width: 90%;
-            margin: 30px auto;
-            text-align: left;
-        }
-        .file-rows {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .file-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .file-row {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 10px;
-            align-items: center;
-        }
-        .file-row .file-meta {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            text-align: left;
-        }
-        .file-row .file-name {
-            font-size: 0.9rem;
-            color: #FFFFFF;
-            word-break: break-all;
-        }
-        .file-row .file-size,
-        .file-row .file-status {
-            font-size: 0.75rem;
-            color: #a1a1aa;
-        }
-        .file-row .file-status.loading {
-            color: #FFD166;
-        }
-        .file-row .file-status.loaded {
-            color: #7CFC98;
-        }
-        .file-row .file-status.error {
-            color: #FF4D4D;
-        }
-        .file-progress {
-            width: 100%;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 999px;
-            overflow: hidden;
-        }
-        .file-progress-bar {
-            height: 100%;
-            width: 0;
-            background: linear-gradient(90deg, #FF0000, #FF6B6B);
-            transition: width 0.2s ease;
-        }
-        .file-row button {
-            width: 36px;
-            height: 36px;
-            padding: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #FFFFFF;
-        }
-        .file-row button:hover {
-            color: #FF0000;
-            border-color: rgba(255, 255, 255, 0.3);
-        }
         .history-actions {
             display: inline-flex;
             align-items: center;
@@ -314,19 +232,6 @@
         }
         .history-actions button {
             min-width: 44px;
-        }
-        .file-add {
-            margin-top: 12px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background-color: #FF0000;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #FFFFFF;
-        }
-        .file-add:hover {
-            background-color: #CC0000;
-            color: #FFFFFF;
         }
         .editor-toolbar button {
             margin: 5px;
@@ -573,17 +478,6 @@
             <div class="char-counter"><span data-i18n="char_count_label">Characters</span>: <span id="editorCharCount">0</span>/4096</div>
         </div>
 
-        <h2 class="editor-header" data-i18n="file_section">Archivo</h2>
-        <div class="file-section">
-            <input type="file" id="filePicker" multiple style="display: none;" onchange="handleFilePick(event)">
-            <input type="file" id="folderPicker" webkitdirectory directory multiple style="display: none;" onchange="handleFilePick(event)">
-            <div id="fileRows" class="file-rows"></div>
-            <div class="file-actions">
-                <button type="button" class="file-add" onclick="document.getElementById('filePicker').click()"><i class="fas fa-plus"></i> <span data-i18n="add_file">Agregar archivo</span></button>
-                <button type="button" class="file-add" onclick="document.getElementById('folderPicker').click()"><i class="fas fa-folder-plus"></i> <span data-i18n="add_folder">Agregar carpeta</span></button>
-            </div>
-        </div>
-
         <div class="section-header">
             <h2 data-i18n="contacts_table">Contacts table</h2>
         </div>
@@ -707,7 +601,9 @@
                 file_status_loaded: 'Cargado',
                 file_status_error: 'Error',
                 sending: 'Enviando...',
-                sending_in_progress: 'Envío en curso...'
+                sending_in_progress: 'Envío en curso...',
+                send_summary: 'Enviados: {sent} · Errores: {error} · Omitidos: {skipped}',
+                of: 'de'
             },
             en: {
                 title: 'DISPATCHER.',
@@ -774,7 +670,9 @@
                 file_status_loaded: 'Loaded',
                 file_status_error: 'Error',
                 sending: 'Sending...',
-                sending_in_progress: 'Sending in progress...'
+                sending_in_progress: 'Sending in progress...',
+                send_summary: 'Sent: {sent} · Errors: {error} · Skipped: {skipped}',
+                of: 'of'
             }
         };
         let currentLang = 'en';
@@ -1068,6 +966,20 @@
             }
             return data?.error || t('error_connect');
         }
+
+        function formatSendSummary(results) {
+            const counts = { sent: 0, error: 0, skipped: 0 };
+            results.forEach(result => {
+                const status = (result.status || '').toLowerCase();
+                if (status === 'sent') counts.sent += 1;
+                else if (status === 'error') counts.error += 1;
+                else counts.skipped += 1;
+            });
+            return t('send_summary')
+                .replace('{sent}', counts.sent)
+                .replace('{error}', counts.error)
+                .replace('{skipped}', counts.skipped);
+        }
         
         function getCellValue(cell) {
             const field = cell.querySelector('textarea, input');
@@ -1152,13 +1064,12 @@
             const phone = getCellValue(cells[3]);
             const name = getCellValue(cells[4]);
             const message = document.getElementById('messageEditor').value || '';
-            const files = getSelectedFiles();
             if (!message.trim()) {
                 showStatus(t('message_required'), true);
                 return;
             }
             setRowStatus(row, 'pending');
-            sendMessage(phone, message, files, countryCode, name, row);
+            sendMessage(phone, message, countryCode, name, row);
         }
         
         function deleteRow(button) {
@@ -1240,7 +1151,11 @@
             pushTableHistory();
         }
         
-        function sendAll() {
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function sendAll() {
             if (isSending) {
                 showStatus(t('sending_in_progress'), false, true);
                 return;
@@ -1261,50 +1176,66 @@
             rows.forEach(row => setRowStatus(row, 'pending'));
 
             const message = document.getElementById('messageEditor').value || '';
-            const files = getSelectedFiles();
             if (!message.trim()) {
                 showStatus(t('message_required'), true);
                 return;
             }
             
-            const minInterval = parseInt(document.getElementById('intervalMin').value);
-            const maxInterval = parseInt(document.getElementById('intervalMax').value);
+            const minInterval = parseFloat(document.getElementById('intervalMin').value) || 1;
+            const maxInterval = parseFloat(document.getElementById('intervalMax').value) || 2;
             
             isSending = true;
-            showStatus(t('sending'), false, true);
-            sendPayload('/send_all', { contacts, message, min_interval: minInterval, max_interval: maxInterval }, files)
-            .then(async response => {
-                const text = await response.text();
-                let data = {};
-                try { data = JSON.parse(text); } catch (_) { data = { error: text || 'Server error' }; }
-                if (!response.ok && !data.error) {
-                    data.error = `HTTP ${response.status}`;
+            const total = contacts.length;
+            let sent = 0;
+            let error = 0;
+            let skipped = 0;
+            let index = 0;
+            for (const contact of contacts) {
+                index += 1;
+                const row = rows.find(r => parseInt(r.dataset.rowIndex, 10) === contact.row_index);
+                if (!contact.phone) {
+                    skipped += 1;
+                    if (row) setRowStatus(row, 'skipped');
+                    showStatus(`${t('sending')} ${index} ${t('of')} ${total}`, false, true);
+                    continue;
                 }
-                return data;
-            })
-            .then(data => {
-                if (data.error) {
-                    showStatus(localizeError(data), true);
-                } else {
-                    showStatus(data.status || 'OK', false);
-                    if (Array.isArray(data.results)) {
-                        data.results.forEach(result => {
-                            if (result.row_index === null || result.row_index === undefined) return;
-                            const row = rows.find(r => parseInt(r.dataset.rowIndex, 10) === result.row_index);
-                            if (row) {
-                                const tooltip = result.error_code ? t(result.error_code) : result.error;
-                                setRowStatus(row, result.status || 'pending', tooltip);
-                            }
-                        });
+                try {
+                    const response = await sendPayload('/send', {
+                        phone: contact.phone,
+                        message,
+                        country_code: contact.country_code,
+                        name: contact.name,
+                        row_index: contact.row_index
+                    });
+                    const text = await response.text();
+                    let data = {};
+                    try { data = JSON.parse(text); } catch (_) { data = { error: text || 'Server error' }; }
+                    if (!response.ok && !data.error) {
+                        data.error = `HTTP ${response.status}`;
                     }
+                    if (data.error) {
+                        error += 1;
+                        if (row) setRowStatus(row, 'error', localizeError(data));
+                    } else {
+                        sent += 1;
+                        if (row) setRowStatus(row, 'sent');
+                    }
+                } catch (err) {
+                    error += 1;
+                    if (row) setRowStatus(row, 'error', t('error_connect'));
                 }
-            })
-            .catch(() => {
-                showStatus(t('error_connect'), true);
-            })
-            .finally(() => {
-                isSending = false;
-            });
+                showStatus(`${t('sending')} ${index} ${t('of')} ${total}`, false, true);
+                if (index < total) {
+                    const wait = (Math.random() * (maxInterval - minInterval) + minInterval) * 1000;
+                    await sleep(wait);
+                }
+            }
+            const summary = t('send_summary')
+                .replace('{sent}', sent)
+                .replace('{error}', error)
+                .replace('{skipped}', skipped);
+            showStatus(summary, error > 0);
+            isSending = false;
         }
         
         function insertFormat(format) {
@@ -1356,14 +1287,14 @@
             scheduleMessageHistory();
         }
         
-        function sendMessage(phone, message, files, countryCode, name, row) {
+        function sendMessage(phone, message, countryCode, name, row) {
             if (isSending) {
                 showStatus(t('sending_in_progress'), false, true);
                 return;
             }
             isSending = true;
             showStatus(t('sending'), false, true);
-            sendPayload('/send', { phone, message, country_code: countryCode, name, row_index: row ? parseInt(row.dataset.rowIndex, 10) : null }, files)
+            sendPayload('/send', { phone, message, country_code: countryCode, name, row_index: row ? parseInt(row.dataset.rowIndex, 10) : null })
             .then(async response => {
                 const text = await response.text();
                 let data = {};
@@ -1423,14 +1354,6 @@
         }
 
         function sendPayload(url, payload, files) {
-            if (files && files.length) {
-                const formData = new FormData();
-                formData.append('payload', JSON.stringify(payload));
-                files.forEach(file => {
-                    formData.append('files', file, file.name);
-                });
-                return fetch(url, { method: 'POST', body: formData });
-            }
             return fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

@@ -456,17 +456,6 @@ def render_message(template, name=None):
 
 
 def parse_request_payload():
-	if request.content_type and request.content_type.startswith("multipart/form-data"):
-		payload_raw = request.form.get("payload")
-		payload = {}
-		if payload_raw:
-			try:
-				import json as _json
-				payload = _json.loads(payload_raw)
-			except Exception:
-				payload = {}
-		files = request.files.getlist("files")
-		return payload, files
 	return request.get_json(force=True, silent=True) or {}, []
 
 
@@ -586,13 +575,10 @@ def upload_csv():
 
 @app.route('/send', methods=['POST'])
 def send():
-	data, uploaded_files = parse_request_payload()
+	data, _ = parse_request_payload()
 	phone = data.get('phone')
 	message_template = data.get('message')
 	name = data.get('name')
-	file_links = normalize_file_links(data)
-	upload_paths = save_uploaded_files(uploaded_files)
-	download_paths = []
 	row_index = data.get('row_index')
 	message = render_message(message_template, name)
 	if not phone or not message:
@@ -627,29 +613,8 @@ def send():
 			except Exception:
 				pass
 
-			file_paths = upload_paths[:]
-			if file_links and not file_paths:
-				for file_link in file_links:
-					file_path = download_file_from_link(file_link)
-					if not file_path:
-						continue
-					file_paths.append(file_path)
-					download_paths.append(file_path)
-
-			if file_paths:
-				if not attach_files(driver, file_paths):
-					raise Exception("error_attach_files")
-				caption_set = set_media_caption(driver, message)
-				if not click_send_button(driver, timeout=30):
-					raise Exception("error_send_attachments")
-				time.sleep(0.2)
-				if not caption_set:
-					chat_input = wait_for_chat_input(driver, 15)
-					if not ensure_message_sent(driver, chat_input, message):
-						raise Exception("error_send_message")
-			else:
-				if not ensure_message_sent(driver, chat_input, message):
-					raise Exception("error_send_message")
+			if not ensure_message_sent(driver, chat_input, message):
+				raise Exception("error_send_message")
 			time.sleep(0.2)
 			return jsonify({'status': 'Message sent', 'row_index': row_index})
 		except Exception as e:
@@ -659,16 +624,7 @@ def send():
 				error_payload['error_code'] = error_key
 			return jsonify(error_payload)
 		finally:
-			for path in upload_paths:
-				try:
-					os.unlink(path)
-				except Exception:
-					pass
-			for path in download_paths:
-				try:
-					os.unlink(path)
-				except Exception:
-					pass
+			pass
 
 @app.route('/send_all', methods=['POST'])
 def send_all():

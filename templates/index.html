@@ -1190,6 +1190,7 @@
             let error = 0;
             let skipped = 0;
             let index = 0;
+            showStatus(`${t('sending')} 0 ${t('of')} ${total}`, false, true);
             for (const contact of contacts) {
                 index += 1;
                 const row = rows.find(r => parseInt(r.dataset.rowIndex, 10) === contact.row_index);
@@ -1293,7 +1294,7 @@
                 return;
             }
             isSending = true;
-            showStatus(t('sending'), false, true);
+            showStatus(`${t('sending')} 1 ${t('of')} 1`, false, true);
             sendPayload('/send', { phone, message, country_code: countryCode, name, row_index: row ? parseInt(row.dataset.rowIndex, 10) : null })
             .then(async response => {
                 const text = await response.text();

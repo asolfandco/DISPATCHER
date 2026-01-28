@@ -343,6 +343,13 @@ def attach_files(driver, file_paths):
 			time.sleep(0.5)
 		file_input = wait_for_element(driver, file_input_xpaths, timeout=12, clickable=False)
 		if not file_input:
+			try:
+				inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='file']")
+				if inputs:
+					file_input = inputs[-1]
+			except Exception:
+				file_input = None
+		if not file_input:
 			time.sleep(1)
 			continue
 		try:
@@ -405,6 +412,14 @@ def normalize_file_links(data):
 	if single_link:
 		return [single_link]
 	return []
+
+
+def render_message(template, name=None):
+	if not template:
+		return template
+	if not name:
+		name = ""
+	return template.replace("{name}", name).replace("{{name}}", name)
 
 
 def parse_request_payload():
@@ -472,10 +487,26 @@ def download_file_from_link(url, timeout=30):
 
 @app.route('/open_whatsapp', methods=['POST'])
 def open_whatsapp():
-	driver = get_driver()
-	with driver_lock:
-		driver.get("https://web.whatsapp.com")
-	return jsonify({'status': 'opened'})
+	global driver_instance
+	try:
+		driver = get_driver()
+		with driver_lock:
+			driver.get("https://web.whatsapp.com")
+		return jsonify({'status': 'opened'})
+	except Exception:
+		try:
+			if driver_instance:
+				driver_instance.quit()
+		except Exception:
+			pass
+		driver_instance = None
+		try:
+			driver = get_driver()
+			with driver_lock:
+				driver.get("https://web.whatsapp.com")
+			return jsonify({'status': 'opened'})
+		except Exception:
+			return jsonify({'error': 'Could not open WhatsApp session', 'error_code': 'error_whatsapp_open_failed'}), 500
 
 @app.route('/')
 def index():
@@ -524,11 +555,13 @@ def upload_csv():
 def send():
 	data, uploaded_files = parse_request_payload()
 	phone = data.get('phone')
-	message = data.get('message')
+	message_template = data.get('message')
+	name = data.get('name')
 	file_links = normalize_file_links(data)
 	upload_paths = save_uploaded_files(uploaded_files)
 	download_paths = []
 	row_index = data.get('row_index')
+	message = render_message(message_template, name)
 	if not phone or not message:
 		return jsonify({
 			'error': 'Phone and message required',
@@ -555,7 +588,7 @@ def send():
 		try:
 			encoded_message = quote(message)
 			driver.get(f"https://web.whatsapp.com/send?phone={phone}&text={encoded_message}&app_absent=0")
-			chat_input = wait_for_chat_input(driver, 30)
+			chat_input = wait_for_chat_input(driver, 20)
 			try:
 				chat_input.click()
 			except Exception:
@@ -578,7 +611,7 @@ def send():
 					raise Exception("error_send_attachments")
 				time.sleep(0.2)
 				if not caption_set:
-					chat_input = wait_for_chat_input(driver, 20)
+					chat_input = wait_for_chat_input(driver, 15)
 					if not ensure_message_sent(driver, chat_input, message):
 						raise Exception("error_send_message")
 			else:
@@ -650,7 +683,8 @@ def send_all():
 
 		for msg in messages:
 			phone = msg.get('phone')
-			message = global_message or msg.get('message')
+			message_template = global_message or msg.get('message')
+			message = render_message(message_template, msg.get('name'))
 			file_links = global_file_links or normalize_file_links(msg)
 			row_index = msg.get('row_index')
 			if not phone or not message:
@@ -663,7 +697,7 @@ def send_all():
 			try:
 				encoded_message = quote(message)
 				driver.get(f"https://web.whatsapp.com/send?phone={phone}&text={encoded_message}&app_absent=0")
-				chat_input = wait_for_chat_input(driver, 30)
+				chat_input = wait_for_chat_input(driver, 20)
 				try:
 					chat_input.click()
 				except Exception:
@@ -685,7 +719,7 @@ def send_all():
 						raise Exception("error_send_attachments")
 					time.sleep(0.2)
 					if not caption_set:
-						chat_input = wait_for_chat_input(driver, 20)
+						chat_input = wait_for_chat_input(driver, 15)
 						if not ensure_message_sent(driver, chat_input, message):
 							raise Exception("error_send_message")
 				else:

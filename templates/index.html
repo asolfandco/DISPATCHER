@@ -485,6 +485,10 @@
             text-align: center;
             line-height: 1.2;
         }
+        #whatsappStatus {
+            width: 100%;
+            text-align: center;
+        }
         .whatsapp-header #whatsappOpenBtn + #whatsappStatus {
             margin-top: 0;
         }
@@ -563,6 +567,7 @@
                 <button onclick="insertFormat('_')" data-i18n="italic">Italic</button>
                 <button onclick="insertFormat('~')" data-i18n="strike">Strike</button>
                 <button onclick="insertFormat('`')" data-i18n="mono">Mono</button>
+                <button onclick="insertNameToken()" data-i18n="name_token">Name</button>
             </div>
             <textarea id="messageEditor" rows="20" placeholder="Type your message here..." data-i18n-placeholder="placeholder_editor"></textarea>
             <div class="char-counter"><span data-i18n="char_count_label">Characters</span>: <span id="editorCharCount">0</span>/4096</div>
@@ -674,6 +679,7 @@
                 italic: 'Cursiva',
                 strike: 'Tachado',
                 mono: 'Monoespaciado',
+                name_token: 'Nombre',
                 char_count_label: 'Caracteres',
                 placeholder_editor: 'Escribe tu mensaje aquí...',
                 placeholder_country: 'Ej: 57',
@@ -691,6 +697,7 @@
                 error_attach_files: 'No se pudieron adjuntar los archivos.',
                 error_send_attachments: 'No se pudo enviar los adjuntos.',
                 error_send_message: 'No se pudo enviar el mensaje.',
+                error_whatsapp_open_failed: 'No se pudo abrir la sesión de WhatsApp.',
                 error_connect: 'No se pudo conectar con el servidor.',
                 add_file: 'Agregar archivos',
                 add_folder: 'Agregar carpeta',
@@ -739,6 +746,7 @@
                 italic: 'Italic',
                 strike: 'Strikethrough',
                 mono: 'Monospace',
+                name_token: 'Name',
                 char_count_label: 'Characters',
                 placeholder_editor: 'Type your message here...',
                 placeholder_country: 'e.g. 57',
@@ -756,6 +764,7 @@
                 error_attach_files: 'Files could not be attached.',
                 error_send_attachments: 'Could not send attachments.',
                 error_send_message: 'Could not send the message.',
+                error_whatsapp_open_failed: 'Could not open WhatsApp session.',
                 error_connect: 'Could not connect to the server.',
                 add_file: 'Add files',
                 add_folder: 'Add folder',
@@ -870,8 +879,9 @@
                         }
                         showStatus(t('whatsapp_open_session_ok'), false);
                     } else {
+                        const message = data?.error_code ? t(data.error_code) : t('whatsapp_open_session_fail');
                         if (whatsappStatus) {
-                            whatsappStatus.textContent = t('whatsapp_open_session_fail');
+                            whatsappStatus.textContent = message;
                             whatsappStatus.classList.remove('loading');
                         }
                         if (whatsappHeader) {
@@ -880,7 +890,7 @@
                         if (whatsappOpenBtn) {
                             whatsappOpenBtn.disabled = false;
                         }
-                        showStatus(t('whatsapp_open_session_fail'), true);
+                        showStatus(message, true);
                     }
                 })
                 .catch(() => {
@@ -1328,6 +1338,22 @@
             }
 
             document.getElementById('editorCharCount').textContent = textarea.value.length;
+        }
+
+        function insertNameToken() {
+            const textarea = document.getElementById('messageEditor');
+            const token = '{name}';
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const before = text.substring(0, start);
+            const after = text.substring(end);
+            textarea.value = before + token + after;
+            textarea.focus();
+            const caret = start + token.length;
+            textarea.setSelectionRange(caret, caret);
+            document.getElementById('editorCharCount').textContent = textarea.value.length;
+            scheduleMessageHistory();
         }
         
         function sendMessage(phone, message, files, countryCode, name, row) {

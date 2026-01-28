@@ -1,52 +1,6 @@
 # DISPATCHER.
 **Powered by Asolf &amp; Co.**
 
-DISPATCHER. es una herramienta de despacho de mensajes por WhatsApp Web diseñada para equipos que necesitan enviar comunicaciones a contactos de forma rápida, organizada y con control sobre el contenido. Incluye un editor global de mensaje, carga de contactos desde CSV/XLSX y gestión de enlaces de archivos.
-
-## Funcionalidades
-- Editor global de mensaje con formato básico.
-- Tabla de contactos con campos: código de país, teléfono y nombre.
-- Importación de contactos desde CSV/XLSX.
-- Adjuntos locales (archivos o carpetas) por envío.
-- Envío individual o masivo con intervalos aleatorios.
-- Banner de estado para errores y confirmaciones.
-
-# DISPATCHER.
-**Powered by Asolf &amp; Co.**
-
-DISPATCHER. es una herramienta de despacho de mensajes por WhatsApp Web para equipos que necesitan enviar comunicaciones rápidas y controladas. Incluye editor global de mensaje, carga de contactos desde CSV/XLSX y adjuntos directos desde el navegador.
-
-## Funcionalidades
-- Editor global con formato compatible con WhatsApp: **negrita**, _cursiva_, ~tachado~, `monoespaciado`.
-- Tabla de contactos con: código de país, teléfono y nombre.
-- Importación desde CSV/XLSX.
-- Adjuntos locales (archivos o carpetas) para envío individual o masivo.
-- Envío individual o masivo con intervalos aleatorios configurables.
-- Banner de estado y mensajes localizados (ES/EN).
-- Botón para abrir WhatsApp Web y estado de carga visible.
-
-## Cómo funciona
-1. Carga contactos (CSV/XLSX) o ingresa manualmente.
-2. Escribe el mensaje global en el editor.
-3. Adjunta archivos si aplica.
-4. Envía a un contacto o usa **Enviar Todo** para una campaña completa.
-
-El envío utiliza **WhatsApp Web** con Selenium, por lo que requiere una sesión autenticada en el navegador del servidor.
-
-## Requisitos
-- Python 3.10+
-- Google Chrome/Chromium instalado en el servidor (o Chrome for Testing descargado automáticamente si falta).
-- Conexión a Internet para cargar WhatsApp Web.
-
-## Inicio rápido
-```bash
-pip install -r requirements.txt
-python app.py
-```
-
-# DISPATCHER.
-**Powered by Asolf &amp; Co.**
-
 DISPATCHER. es una herramienta de despacho de mensajes por WhatsApp Web para equipos que necesitan enviar comunicaciones rápidas y controladas. Incluye editor global de mensaje, carga de contactos desde CSV/XLSX y envío individual o masivo.
 
 ## Funcionalidades

@@ -308,12 +308,20 @@ def click_send_button(driver, timeout=15):
 def attach_files(driver, file_paths):
 	if not file_paths:
 		return False
+	file_paths = [p for p in file_paths if p and os.path.isfile(p)]
+	if not file_paths:
+		return False
 	attach_xpaths = [
 		"//span[@data-icon='clip']",
 		"//span[@data-testid='clip']",
 		"//div[@role='button' and (@aria-label='Attach' or @aria-label='Adjuntar')]",
 		"//button[@title='Attach' or @title='Adjuntar']",
 		"//div[@title='Attach' or @title='Adjuntar']"
+	]
+	document_xpaths = [
+		"//span[@data-icon='document']",
+		"//span[@data-testid='attach-document']",
+		"//div[@role='button' and (@aria-label='Document' or @aria-label='Documento')]"
 	]
 	file_input_xpaths = [
 		"//input[@type='file' and @data-testid='attach-doc']",
@@ -332,6 +340,29 @@ def attach_files(driver, file_paths):
 		"//span[@data-icon='send']",
 		"//span[@data-testid='send']"
 	]
+	attach_menu_xpaths = [
+		"//div[@role='dialog']",
+		"//div[@data-testid='attach-menu']",
+		"//div[contains(@class,'attach')]"
+	]
+
+	def _find_file_input():
+		inputs = []
+		try:
+			inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='file']")
+		except Exception:
+			inputs = []
+		if inputs:
+			for element in inputs:
+				try:
+					accept = (element.get_attribute("accept") or "").lower()
+					if not accept or "*" in accept or "application" in accept or "image" in accept:
+						return element
+				except Exception:
+					continue
+			return inputs[-1]
+		return None
+
 	for _ in range(3):
 		attach_button = wait_for_element(driver, attach_xpaths, timeout=12, clickable=True)
 		if not attach_button:
@@ -341,14 +372,16 @@ def attach_files(driver, file_paths):
 			attach_button.click()
 		except Exception:
 			time.sleep(0.5)
+		wait_for_element(driver, attach_menu_xpaths, timeout=4, clickable=False)
+		doc_button = wait_for_element(driver, document_xpaths, timeout=6, clickable=True)
+		if doc_button:
+			try:
+				doc_button.click()
+			except Exception:
+				pass
 		file_input = wait_for_element(driver, file_input_xpaths, timeout=12, clickable=False)
 		if not file_input:
-			try:
-				inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='file']")
-				if inputs:
-					file_input = inputs[-1]
-			except Exception:
-				file_input = None
+			file_input = _find_file_input()
 		if not file_input:
 			time.sleep(1)
 			continue
@@ -357,7 +390,7 @@ def attach_files(driver, file_paths):
 		except Exception:
 			time.sleep(1)
 			continue
-		if wait_for_element(driver, preview_xpaths, timeout=20, clickable=False) or wait_for_element(driver, send_xpaths, timeout=15, clickable=True):
+		if wait_for_element(driver, preview_xpaths, timeout=25, clickable=False) or wait_for_element(driver, send_xpaths, timeout=20, clickable=True):
 			return True
 		time.sleep(1)
 	return False

@@ -12,7 +12,7 @@ DISPATCHER. es una herramienta de despacho de mensajes por WhatsApp Web para equ
 - Barra de estado con progreso y resultados.
 
 ## Cómo funciona
-1. Carga contactos (CSV) o ingresa manualmente.
+1. Carga contactos CSV o ingresa manualmente.
 2. Escribe el mensaje global en el editor.
 3. (Opcional) Inserta {name} para personalizar.
 4. Envía a un contacto o usa **Enviar Todo** para una campaña completa.

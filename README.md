@@ -1,15 +1,13 @@
 # DISPATCHER.
-**Powered by Asolf &amp; Co.**
 
-DISPATCHER. es una herramienta de despacho de mensajes por WhatsApp Web para equipos que necesitan enviar comunicaciones rápidas y controladas. Incluye editor global de mensaje, carga de contactos desde CSV y envío individual o masivo.
+Una herramienta de despacho de mensajes por WhatsApp Web para equipos que necesitan enviar comunicaciones rápidas y controladas. Incluye editor global de mensaje, carga de contactos desde CSV y envío individual o masivo.
 
 ## Funcionalidades
 - Editor global con formato compatible con WhatsApp: **negrita**, _cursiva_, ~tachado~, `monoespaciado`.
 - Botón **Name** para usar {name} en el mensaje y personalizar cada contacto.
-- Tabla de contactos con: código de país, teléfono y nombre.
+- Tabla de contactos con código de país, teléfono y nombre.
 - Importación desde CSV.
 - Envío individual o masivo con intervalos aleatorios configurables.
-- Barra de estado con progreso y resultados.
 
 ## Cómo funciona
 1. Carga contactos CSV o ingresa manualmente.
@@ -36,11 +34,10 @@ http://localhost:5000
 ```
 
 ## Autenticación de WhatsApp Web
-Para enviar mensajes, se debe **vincular la sesión** de WhatsApp Web desde el servidor. Si el servidor no tiene interfaz gráfica, usa un entorno con GUI para escanear el QR.
+Para enviar mensajes, se debe **vincular la sesión** de WhatsApp Web desde el servidor.
 
 ## Configuración (opcional)
 - `DISPATCHER_AUTO_OPEN=1` abre la UI al iniciar.
-- `DISPATCHER_AUTO_OPEN_SELENIUM=1` abre WhatsApp Web automáticamente.
 - `WHATSAPP_HEADLESS=1` fuerza modo headless.
 - `WHATSAPP_PROFILE_DIR=/ruta/perfil` para reutilizar sesión.
 

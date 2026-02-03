@@ -482,7 +482,7 @@
             <h2 data-i18n="contacts_table">Contacts table</h2>
         </div>
         <div class="table-controls">
-            <button onclick="document.getElementById('importFile').click()" data-i18n="import">Import CSV/XLSX</button>
+            <button onclick="document.getElementById('importFile').click()" data-i18n="import">Import CSV</button>
             <input type="file" id="importFile" accept=".csv,.xlsx" onchange="importFile()" style="display: none;">
             <button onclick="exportResults()" data-i18n="export">Export CSV</button>
             <div class="history-actions">
@@ -550,7 +550,7 @@
                 status_error: 'Error',
                 status_skipped: 'Omitido',
                 contacts_table: 'Tabla de Contactos',
-                import: 'Importar CSV/XLSX',
+                import: 'Importar CSV',
                 export: 'Exportar CSV',
                 select_all: 'Seleccionar todo',
                 copy_all: 'Copiar',
@@ -576,8 +576,8 @@
                 name_token: 'Nombre',
                 char_count_label: 'Caracteres',
                 placeholder_editor: 'Escribe tu mensaje aquí...',
-                placeholder_country: 'Ej: 57',
-                placeholder_phone: 'Ej: 3001234567',
+                placeholder_country: 'Ej: 34',
+                placeholder_phone: 'Ej: 123456789',
                 placeholder_name: 'Nombre',
                 placeholder_message: 'Mensaje',
                 placeholder_link: 'https://link.com',
@@ -620,7 +620,7 @@
                 status_error: 'Error',
                 status_skipped: 'Skipped',
                 contacts_table: 'Contacts table',
-                import: 'Import CSV/XLSX',
+                import: 'Import CSV',
                 export: 'Export CSV',
                 select_all: 'Select all',
                 copy_all: 'Duplicate',
@@ -646,8 +646,8 @@
                 name_token: 'Name',
                 char_count_label: 'Characters',
                 placeholder_editor: 'Type your message here...',
-                placeholder_country: 'e.g. 57',
-                placeholder_phone: 'e.g. 3001234567',
+                placeholder_country: 'e.g. 34',
+                placeholder_phone: 'e.g. 123456789',
                 placeholder_name: 'Name',
                 placeholder_message: 'Message',
                 placeholder_link: 'https://link.com',
@@ -952,7 +952,7 @@
         function showStatus(message, isError = false, isLoading = false) {
             const banner = document.getElementById('statusBanner');
             if (!banner) return;
-            banner.textContent = message || '';
+            banner.innerHTML = (message || '').replace(/\n/g, '<br>');
             banner.style.display = message ? 'block' : 'none';
             banner.style.color = isError ? '#FF4D4D' : '#7CFC98';
             banner.classList.toggle('status-loading', isLoading);
@@ -1094,6 +1094,8 @@
                 } else {
                     populateTable(data.data);
                 }
+                // Reset the file input to allow re-importing the same file
+                document.getElementById('importFile').value = '';
             });
         }
         
@@ -1191,6 +1193,7 @@
             let error = 0;
             let skipped = 0;
             let index = 0;
+            const errorDetails = [];
             showStatus(`${t('sending')} 0 ${t('of')} ${total}`, false, true);
             for (const contact of contacts) {
                 index += 1;
@@ -1217,14 +1220,18 @@
                     }
                     if (data.error) {
                         error += 1;
-                        if (row) setRowStatus(row, 'error', localizeError(data));
+                        const errorMsg = localizeError(data);
+                        errorDetails.push(`${contact.name || contact.phone}: ${errorMsg}`);
+                        if (row) setRowStatus(row, 'error', errorMsg);
                     } else {
                         sent += 1;
                         if (row) setRowStatus(row, 'sent');
                     }
                 } catch (err) {
                     error += 1;
-                    if (row) setRowStatus(row, 'error', t('error_connect'));
+                    const errorMsg = t('error_connect');
+                    errorDetails.push(`${contact.name || contact.phone}: ${errorMsg}`);
+                    if (row) setRowStatus(row, 'error', errorMsg);
                 }
                 showStatus(`${t('sending')} ${index} ${t('of')} ${total}`, false, true);
                 if (index < total) {
@@ -1236,7 +1243,8 @@
                 .replace('{sent}', sent)
                 .replace('{error}', error)
                 .replace('{skipped}', skipped);
-            showStatus(summary, error > 0);
+            const fullMessage = summary + (errorDetails.length > 0 ? '\n' + errorDetails.join('\n') : '');
+            showStatus(fullMessage, error > 0);
             isSending = false;
         }
         
@@ -1295,7 +1303,11 @@
                 return;
             }
             isSending = true;
-            showStatus(`${t('sending')} 1 ${t('of')} 1`, false, true);
+            let sent = 0;
+            let error = 0;
+            let skipped = 0;
+            const errorDetails = [];
+            showStatus(`${t('sending')} 0 ${t('of')} 1`, false, true);
             sendPayload('/send', { phone, message, country_code: countryCode, name, row_index: row ? parseInt(row.dataset.rowIndex, 10) : null })
             .then(async response => {
                 const text = await response.text();
@@ -1308,16 +1320,35 @@
             })
             .then(data => {
                 if (data.error) {
-                    const message = localizeError(data);
-                    showStatus(message, true);
-                    if (row) setRowStatus(row, 'error', message);
+                    error += 1;
+                    const errorMsg = localizeError(data);
+                    errorDetails.push(`${name || phone}: ${errorMsg}`);
+                    showStatus(`${t('sending')} 1 ${t('of')} 1`, false, true);
+                    if (row) setRowStatus(row, 'error', errorMsg);
                 } else {
-                    showStatus(data.status || 'OK', false);
+                    sent += 1;
+                    showStatus(`${t('sending')} 1 ${t('of')} 1`, false, true);
                     if (row) setRowStatus(row, 'sent');
                 }
+                const summary = t('send_summary')
+                    .replace('{sent}', sent)
+                    .replace('{error}', error)
+                    .replace('{skipped}', skipped);
+                const fullMessage = summary + (errorDetails.length > 0 ? '\n' + errorDetails.join('\n') : '');
+                showStatus(fullMessage, error > 0);
             })
             .catch(() => {
-                showStatus(t('error_connect'), true);
+                error += 1;
+                const errorMsg = t('error_connect');
+                errorDetails.push(`${name || phone}: ${errorMsg}`);
+                showStatus(`${t('sending')} 1 ${t('of')} 1`, false, true);
+                if (row) setRowStatus(row, 'error', errorMsg);
+                const summary = t('send_summary')
+                    .replace('{sent}', sent)
+                    .replace('{error}', error)
+                    .replace('{skipped}', skipped);
+                const fullMessage = summary + (errorDetails.length > 0 ? '\n' + errorDetails.join('\n') : '');
+                showStatus(fullMessage, error > 0);
             })
             .finally(() => {
                 isSending = false;
@@ -1327,11 +1358,12 @@
         function exportResults() {
             const rows = Array.from(document.querySelectorAll('#tableBody tr')).filter(row => row.id !== 'addRow');
             const headers = [
-                t('country_code'),
-                t('phone_number'),
-                t('name')
+                'country_code',
+                'phone_number',
+                'name'
             ];
             let csv = `${headers.join(',')}\n`;
+            let hasData = false;
             rows.forEach(row => {
                 const cells = row.cells;
                 if (!cells || cells.length < 4) return;
@@ -1339,7 +1371,13 @@
                 const phone = getCellValue(cells[3]);
                 const name = getCellValue(cells[4]);
                 csv += `"${countryCode}","${phone}","${name}"\n`;
+                if (countryCode.trim() || phone.trim() || name.trim()) {
+                    hasData = true;
+                }
             });
+            if (!hasData) {
+                csv += `"34","123456789","Name"\n`;
+            }
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1700,6 +1738,8 @@
             renumberRows();
             updateSelectAllCheckbox();
             pushTableHistory();
+            // Reset the file input to allow re-importing
+            document.getElementById('importFile').value = '';
         }
 
         function duplicateRow(sourceRow) {

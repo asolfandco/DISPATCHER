@@ -554,7 +554,7 @@ def upload_csv():
 		# Mapear columnas a las esperadas: country_code, phone, name, message, file_link
 		column_mapping = {
 			'country_code': ['country_code', 'codigo_pais', 'country code', 'código de país'],
-			'phone': ['phone', 'telefono', 'número', 'numero', 'teléfono'],
+			'phone': ['phone', 'telefono', 'número', 'numero', 'teléfono', 'phone_number'],
 			'name': ['name', 'nombre'],
 			'message': ['message', 'mensaje'],
 			'file_link': ['file_link', 'archivo', 'file link', 'link archivo']

@@ -458,9 +458,9 @@
             </div>
         
         <div class="whatsapp-header">
-            <h2 data-i18n="whatsapp_title">WhatsApp Web</h2>
-            <p data-i18n="whatsapp_notice">Can't be embedded here due to security policies.</p>
-            <button id="whatsappOpenBtn" type="button" onclick="openWhatsAppSession()" data-i18n="whatsapp_open">Open WhatsApp Web in a new tab</button>
+            <h2>WhatsApp Web</h2>
+            <p>Abre WhatsApp Web solo con el botón de abajo.</p>
+            <button id="whatsappOpenBtn" type="button" onclick="openWhatsAppSession()">Open</button>
             <div id="whatsappStatus" class="status-inline" aria-live="polite"></div>
         </div>
 
@@ -482,16 +482,16 @@
             <h2 data-i18n="contacts_table">Contacts table</h2>
         </div>
         <div class="table-controls">
-            <button onclick="document.getElementById('importFile').click()" data-i18n="import">Import CSV/XLSX</button>
-            <input type="file" id="importFile" accept=".csv,.xlsx" onchange="importFile()" style="display: none;">
-            <button onclick="exportResults()" data-i18n="export">Export CSV</button>
+            <button onclick="document.getElementById('importFile').click()">Import CSV</button>
+            <input type="file" id="importFile" accept=".csv" onchange="importFile()" style="display: none;">
+            <button onclick="exportResults()">Export CSV</button>
             <div class="history-actions">
                 <button type="button" id="undoBtn" onclick="undoAction()" data-i18n="undo" data-i18n-attr="title,aria-label" title="Undo" aria-label="Undo"><i class="fa-solid fa-rotate-left"></i></button>
                 <button type="button" id="redoBtn" onclick="redoAction()" data-i18n="redo" data-i18n-attr="title,aria-label" title="Redo" aria-label="Redo"><i class="fa-solid fa-rotate-right"></i></button>
             </div>
             <div class="bulk-actions">
-                <button type="button" onclick="copyAllRows()" data-i18n="copy_all">Duplicate</button>
-                <button type="button" onclick="deleteAllRows()" data-i18n="delete_all">Delete all</button>
+                <button type="button" onclick="copyAllRows()">Duplicate</button>
+                <button type="button" onclick="deleteAllRows()">Delete</button>
             </div>
             <div class="interval-group" style="display:flex;align-items:center;gap:6px;">
                 <label for="intervalMin" style="margin:0;" data-i18n="interval_label">Random interval (s):</label>
@@ -582,8 +582,7 @@
                 placeholder_message: 'Mensaje',
                 placeholder_link: 'https://link.com',
                 send: 'Enviar',
-                copy: 'Duplicar',
-                copy_all: 'Duplicar',
+                copy: 'Copiar',
                 delete: 'Eliminar',
                 message_required: 'El mensaje es obligatorio.',
                 error_message_required: 'El mensaje es obligatorio.',
@@ -608,8 +607,8 @@
             },
             en: {
                 title: 'DISPATCHER.',
-                whatsapp_title: 'WhatsApp Web',
-                whatsapp_notice: 'Open WhatsApp Web using the button below.',
+                placeholder_country: '34',
+                placeholder_phone: '123456789',
                 whatsapp_open: 'Open',
                 whatsapp_opening: 'Opening WhatsApp Web...',
                 whatsapp_open_session_ok: 'WhatsApp window opened. Scan the QR code there.',
@@ -623,7 +622,7 @@
                 import: 'Import CSV/XLSX',
                 export: 'Export CSV',
                 select_all: 'Select all',
-                copy_all: 'Duplicate',
+                copy_all: 'Copy',
                 delete_all: 'Delete',
                 undo: 'Undo',
                 redo: 'Redo',
@@ -646,13 +645,13 @@
                 name_token: 'Name',
                 char_count_label: 'Characters',
                 placeholder_editor: 'Type your message here...',
-                placeholder_country: 'e.g. 57',
-                placeholder_phone: 'e.g. 3001234567',
+                placeholder_country: '34',
+                placeholder_phone: '123456789',
                 placeholder_name: 'Name',
                 placeholder_message: 'Message',
                 placeholder_link: 'https://link.com',
                 send: 'Send',
-                copy: 'Duplicate',
+                copy: 'Copy',
                 delete: 'Delete',
                 message_required: 'Message is required.',
                 error_message_required: 'Message is required.',
@@ -1003,7 +1002,7 @@
                         <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">
                             <i class="fa-brands fa-whatsapp"></i>
                         </button>
-                        <button onclick="copyRow(this)" data-i18n="copy" data-i18n-attr="title,aria-label" title="${t('copy')}" aria-label="${t('copy')}">
+                        <button onclick="copyRow(this)" title="Duplicate" aria-label="Duplicate">
                             <i class="fa-regular fa-copy"></i>
                         </button>
                         <button onclick="deleteRow(this)" data-i18n="delete" data-i18n-attr="title,aria-label" title="${t('delete')}" aria-label="${t('delete')}">
@@ -1036,7 +1035,7 @@
                         <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">
                             <i class="fa-brands fa-whatsapp"></i>
                         </button>
-                        <button onclick="copyRow(this)" data-i18n="copy" data-i18n-attr="title,aria-label" title="${t('copy')}" aria-label="${t('copy')}">
+                        <button onclick="copyRow(this)" title="Duplicate" aria-label="Duplicate">
                             <i class="fa-regular fa-copy"></i>
                         </button>
                         <button onclick="deleteRow(this)" data-i18n="delete" data-i18n-attr="title,aria-label" title="${t('delete')}" aria-label="${t('delete')}">
@@ -1127,6 +1126,9 @@
                                 <i class="fa-brands fa-whatsapp"></i>
                             </button>
                             <button onclick="copyRow(this)" data-i18n="copy" data-i18n-attr="title,aria-label" title="${t('copy')}" aria-label="${t('copy')}">
+                                                            <button onclick="copyRow(this)" title="Duplicate" aria-label="Duplicate">
+                                                            <button onclick="copyRow(this)" title="Duplicate" aria-label="Duplicate">
+                                                        <button onclick="copyRow(this)" title="Duplicate" aria-label="Duplicate">
                                 <i class="fa-regular fa-copy"></i>
                             </button>
                             <button onclick="deleteRow(this)" data-i18n="delete" data-i18n-attr="title,aria-label" title="${t('delete')}" aria-label="${t('delete')}">
@@ -1327,19 +1329,32 @@
         function exportResults() {
             const rows = Array.from(document.querySelectorAll('#tableBody tr')).filter(row => row.id !== 'addRow');
             const headers = [
-                t('country_code'),
-                t('phone_number'),
-                t('name')
+                'country_code',
+                'phone',
+                'name'
             ];
-            let csv = `${headers.join(',')}\n`;
+            let csv = `${headers.join(',')}` + '\n';
+            let hasData = false;
             rows.forEach(row => {
                 const cells = row.cells;
                 if (!cells || cells.length < 4) return;
-                const countryCode = getCellValue(cells[2]);
-                const phone = getCellValue(cells[3]);
-                const name = getCellValue(cells[4]);
-                csv += `"${countryCode}","${phone}","${name}"\n`;
+                let countryCode = getCellValue(cells[2]);
+                let phone = getCellValue(cells[3]);
+                let name = getCellValue(cells[4]);
+                // Eliminar .0 si es un número entero
+                if (countryCode && /^\d+\.0$/.test(countryCode)) countryCode = countryCode.replace(/\.0$/, '');
+                if (phone && /^\d+\.0$/.test(phone)) phone = phone.replace(/\.0$/, '');
+                if (countryCode || phone || name) {
+                    hasData = true;
+                }
+                // Solo exportar filas con algún dato
+                if (countryCode || phone || name) {
+                    csv += `${countryCode || ''},${phone || ''},${name || ''}\n`;
+                }
             });
+            if (!hasData) {
+                csv += '34,123456789,Name\n';
+            }
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1436,7 +1451,7 @@
                             <button onclick="sendFromRow(this)" data-i18n="send" data-i18n-attr="title,aria-label" title="${t('send')}" aria-label="${t('send')}">
                                 <i class="fa-brands fa-whatsapp"></i>
                             </button>
-                            <button onclick="copyRow(this)" data-i18n="copy" data-i18n-attr="title,aria-label" title="${t('copy')}" aria-label="${t('copy')}">
+                            <button onclick="copyRow(this)" title="Duplicate" aria-label="Duplicate">
                                 <i class="fa-regular fa-copy"></i>
                             </button>
                             <button onclick="deleteRow(this)" data-i18n="delete" data-i18n-attr="title,aria-label" title="${t('delete')}" aria-label="${t('delete')}">
@@ -1697,6 +1712,8 @@
             const rows = getTargetRowsForBulk();
             if (!rows.length) return;
             rows.forEach(row => row.remove());
+            const importInput = document.getElementById('importFile');
+            if (importInput) importInput.value = '';
             renumberRows();
             updateSelectAllCheckbox();
             pushTableHistory();

@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -25,6 +26,7 @@ from werkzeug.exceptions import HTTPException
 warnings.filterwarnings("ignore")
 
 app = Flask(__name__)
+CORS(app)
 
 
 @app.errorhandler(Exception)
@@ -538,37 +540,45 @@ def index():
 def upload_csv():
 	try:
 		import pandas as pd
-		import openpyxl
 	except ImportError:
-		return jsonify({'error': 'Pandas or openpyxl not available'})
+		return jsonify({'error': 'Pandas no disponible'})
 	if 'file' not in request.files:
 		return jsonify({'error': 'No file part'})
 	file = request.files['file']
 	if file.filename == '':
 		return jsonify({'error': 'No selected file'})
-	if file and (file.filename.endswith('.csv') or file.filename.endswith('.xlsx')):
-		if file.filename.endswith('.csv'):
-			df = pd.read_csv(file)
+	if file and file.filename.endswith('.csv'):
+		tried = []
+		for delim in [',', ';', '\t']:
+			try:
+				file.seek(0)
+				df = pd.read_csv(file, delimiter=delim)
+				tried.append(delim)
+				if df.shape[1] > 0:
+					break
+			except Exception as e:
+				last_error = str(e)
 		else:
-			df = pd.read_excel(file)
-		# Mapear columnas a las esperadas: country_code, phone, name, message, file_link
-		column_mapping = {
-			'country_code': ['country_code', 'codigo_pais', 'country code', 'código de país'],
-			'phone': ['phone', 'telefono', 'número', 'numero', 'teléfono'],
-			'name': ['name', 'nombre'],
-			'message': ['message', 'mensaje'],
-			'file_link': ['file_link', 'archivo', 'file link', 'link archivo']
-		}
+			return jsonify({'error': f'No se pudo leer el archivo CSV. Intenta guardarlo como UTF-8. Último error: {last_error}'})
+		if df.shape[1] == 0:
+			return jsonify({'error': 'El archivo no contiene columnas válidas. Asegúrate de que la primera línea tenga los encabezados: country_code,phone,name'})
+		expected_headers = ['country_code', 'phone', 'name']
+		header_map = {}
+		for h in expected_headers:
+			for col in df.columns:
+				if col.lower().replace(' ', '').replace('_', '') == h.replace('_', ''):
+					header_map[h] = col
+					break
+		if len(header_map) != len(expected_headers):
+			return jsonify({'error': f'Encabezados detectados: {df.columns.tolist()}\nEl archivo debe tener los encabezados: country_code,phone,name'})
+		if df.shape[0] == 0:
+			return jsonify({'data': []})
 		mapped_data = []
 		for _, row in df.iterrows():
 			item = {}
-			for key, possible_names in column_mapping.items():
-				for col in df.columns:
-					if col.lower().strip() in [p.lower() for p in possible_names]:
-						item[key] = str(row[col]) if pd.notna(row[col]) else ''
-						break
-				if key not in item:
-					item[key] = ''
+			for key in expected_headers:
+				col = header_map[key]
+				item[key] = str(row[col]) if col in row and pd.notna(row[col]) else ''
 			mapped_data.append(item)
 		return jsonify({'data': mapped_data})
 	return jsonify({'error': 'Invalid file'})
@@ -590,7 +600,7 @@ def send():
     
 	# Si el teléfono no comienza con +, asumimos que es local y necesitamos country_code
 	if not phone.startswith('+'):
-		country_code = data.get('country_code', '57')  # Default Colombia
+		country_code = data.get('country_code', '34')  # Default España
 		phone = f"+{country_code}{phone}"
     
 	try:
@@ -680,7 +690,7 @@ def send_all():
 				results.append({'row_index': row_index, 'status': 'skipped'})
 				continue
 			if not phone.startswith('+'):
-				country_code = msg.get('country_code', '57')
+				country_code = msg.get('country_code', '34')
 				phone = f"+{country_code}{phone}"
 
 			try:
@@ -761,6 +771,6 @@ if __name__ == '__main__':
 	threading.Thread(target=open_ui, daemon=True).start()
 	try:
 		from waitress import serve
-		serve(app, host='127.0.0.1', port=5000)
+		serve(app, host='0.0.0.0', port=5000)
 	except Exception:
-		app.run(host='127.0.0.1', debug=False, use_reloader=False)
+		app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)

@@ -1,7 +1,6 @@
 # DISPATCHER.
-**Powered by Asolf &amp; Co.**
 
-DISPATCHER. es una herramienta de despacho de mensajes por WhatsApp Web para equipos que necesitan enviar comunicaciones rápidas y controladas. Incluye editor global de mensaje, carga de contactos desde CSV y envío individual o masivo.
+Una herramienta de despacho de mensajes por WhatsApp Web para equipos que necesitan enviar comunicaciones rápidas y controladas. Incluye editor global de mensaje, carga de contactos desde CSV y envío individual o masivo.
 
 ## Funcionalidades
 - Editor global con formato compatible con WhatsApp: **negrita**, _cursiva_, ~tachado~, `monoespaciado`.
